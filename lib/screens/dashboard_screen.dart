@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:async';
 import 'dart:math'; // Imported for random data generation
-import 'overview_screen.dart';
 import 'profile_screen.dart';
 import 'chat_screen.dart'; 
-import 'temperature_details_screen.dart'; // Import the new screen
+// --- UPDATED IMPORTS for Detailed Screens ---
+import '../detailed_screens/temperature_details_screen.dart'; 
+import '../detailed_screens/humidity_details_screen.dart';
 
 // Fallback GoogleFonts class... (same as before)
 class GoogleFonts {
@@ -230,7 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       mainAxisSpacing: 16,
       childAspectRatio: 0.9, 
       children: [
-        // 1. Air Temp - CLICKABLE (Links to new screen)
+        // 1. Air Temp - CLICKABLE
         _ConditionCard(
           title: "Air Temp",
           value: "${sensorData?['air_temp']}°C",
@@ -248,7 +249,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         ),
         
-        // 2. Humidity
+        // 2. Humidity - CLICKABLE (NEW)
         _ConditionCard(
           title: "Humidity",
           value: "${sensorData?['humidity']}%",
@@ -256,6 +257,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           iconBg: const Color(0xFFE8F5E9),
           iconColor: const Color(0xFF2E7D32),
           child: _MiniLineChart(color: const Color(0xFF2E7D32)),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HumidityDetailsScreen(sensorData: sensorData),
+              ),
+            );
+          },
         ),
 
         // 3. Leaf Wetness
