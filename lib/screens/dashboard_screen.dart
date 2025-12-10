@@ -91,7 +91,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, 
+      backgroundColor: const Color(0xFF166534), // Dark Green Background
+      
+      // --- Floating Action Button (Robot) Centered ---
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -99,12 +102,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (context) => const ChatScreen()),
           );
         },
-        backgroundColor: const Color(0xFF166534),
+        backgroundColor: const Color(0xFF166534), // Brand Green
+        elevation: 4.0,
+        shape: const CircleBorder(), // Ensure it's perfectly round
         child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
       ),
+
+      // --- Bottom Navigation Bar ---
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          // Prevent tapping the middle empty slot
+          if (index != 2) {
+             setState(() => _selectedIndex = index);
+          }
+        },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF166534),
         unselectedItemColor: Colors.grey,
@@ -120,6 +132,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icon(Icons.sensors),
             label: "Sensors",
           ),
+          // --- Dummy Item for Spacing ---
+          BottomNavigationBarItem(
+            icon: SizedBox(height: 24), // Invisible placeholder
+            label: "",
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
             label: "Map",
@@ -130,33 +147,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
+
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildCustomHeader(context),
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF166534)))
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 10),
-                          Text(
-                            "Field Conditions",
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white, // White background for content body
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF166534)))
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 24), // Increased top padding
+                            Text(
+                              "Field Conditions",
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildFieldConditionsGrid(),
-                          const SizedBox(height: 80), 
-                        ],
+                            const SizedBox(height: 16),
+                            _buildFieldConditionsGrid(),
+                            const SizedBox(height: 80), 
+                          ],
+                        ),
                       ),
-                    ),
+              ),
             ),
           ],
         ),
@@ -172,10 +198,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.public, 
-                size: 32,
-                color: Color(0xFF166534),
+              // Logo Container
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15), // Semi-transparent white
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.public, 
+                  size: 24,
+                  color: Colors.white, // White Icon
+                ),
               ),
               const SizedBox(width: 12),
               Column(
@@ -184,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     "Grid Sphere Pvt. Ltd.",
                     style: GoogleFonts.inter(
-                      color: Colors.black87,
+                      color: Colors.white, // White Text
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -192,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     "AgriTech",
                     style: GoogleFonts.inter(
-                      color: Colors.grey,
+                      color: Colors.white70, // Semi-transparent white text
                       fontSize: 12,
                     ),
                   ),
@@ -211,10 +245,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: Colors.white.withOpacity(0.2), // Semi-transparent white bg
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.white24, width: 1.5),
               ),
-              child: const Icon(Icons.person, color: Colors.grey, size: 24),
+              child: const Icon(Icons.person, color: Colors.white, size: 24),
             ),
           )
         ],
