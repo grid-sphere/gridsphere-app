@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../screens/chat_screen.dart';   // Import Chat Screen
+import '../screens/alerts_screen.dart'; // Import Alerts Screen
 
 // Helper class for fonts
 class GoogleFonts {
@@ -34,7 +36,7 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     // Extract data or use defaults
-    final double currentHum = 65.0;
+    final double currentHum = widget.sensorData?['humidity'] ?? 65.0;
     final double maxHum = currentHum + 12.0;
     final double minHum = currentHum - 15.0;
 
@@ -63,7 +65,23 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
           )
         ],
       ),
-      // Fixed Footer
+
+      // --- Floating Action Button (Robot) Centered ---
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF166534), // Brand Green
+        elevation: 4.0,
+        shape: const CircleBorder(),
+        child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
+      ),
+
+      // --- Fixed Footer (Bottom Navigation Bar) ---
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
@@ -73,16 +91,29 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
         selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
         onTap: (index) {
+          if (index == 2) return; // Ignore dummy center item
+
           setState(() => _selectedIndex = index);
-          if (index == 0) Navigator.pop(context);
+
+          if (index == 0) {
+            Navigator.pop(context); // Go back to Home
+          } else if (index == 4) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AlertsScreen()),
+            );
+          }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.sensors), label: "Sensors"),
+          // --- Dummy Item for Spacing ---
+          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
           BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: "Map"),
           BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: "Alerts"),
         ],
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -241,6 +272,7 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 40), // Bottom padding
           ],
         ),
       ),

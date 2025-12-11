@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'login_screen.dart'; // To navigate back to login on logout
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'login_screen.dart'; 
 
 // Fallback GoogleFonts class
 class GoogleFonts {
@@ -20,15 +22,160 @@ class GoogleFonts {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  final String sessionCookie;
+  
+  const ProfileScreen({super.key, required this.sessionCookie});
 
-  void _handleLogout(BuildContext context) {
-    // Navigate back to Login Screen and remove all previous routes
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final String _baseUrl = "https://gridsphere.in/station/api";
+  Map<String, dynamic> userData = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      // Fetch Session info (often contains user details)
+      final sessionResponse = await http.get(
+        Uri.parse('$_baseUrl/checkSession'),
+        headers: {
+          'Cookie': widget.sessionCookie,
+          'User-Agent': 'FlutterApp',
+        },
+      );
+
+      String userId = "Loading...";
+      String username = "Farmer";
+      String email = "--";
+      String mobile = "--";
+      String address = "India"; // Default
+
+      if (sessionResponse.statusCode == 200) {
+        final sessionData = jsonDecode(sessionResponse.body);
+        // Adjust these keys based on your actual API response structure for checkSession
+        if (sessionData['user_id'] != null) userId = sessionData['user_id'].toString();
+        if (sessionData['username'] != null) username = sessionData['username'].toString();
+        
+        // Try to fetch specific fields if they exist in the session response
+        if (sessionData['email'] != null) email = sessionData['email'].toString();
+        if (sessionData['phone'] != null) mobile = sessionData['phone'].toString();
+        else if (sessionData['mobile'] != null) mobile = sessionData['mobile'].toString();
+        
+        // Construct address if components exist
+        List<String> addrParts = [];
+        if (sessionData['city'] != null) addrParts.add(sessionData['city']);
+        if (sessionData['state'] != null) addrParts.add(sessionData['state']);
+        
+        if (addrParts.isNotEmpty) {
+           address = addrParts.join(", ");
+        } else if (sessionData['address'] != null) {
+           address = sessionData['address'].toString();
+        }
+
+        // Fallback: If no user details, use "Admin" or similar
+        if (userId == "Loading...") userId = "admin"; 
+      }
+
+      // Fetch Devices count
+      final devicesResponse = await http.get(
+        Uri.parse('$_baseUrl/getDevices'),
+        headers: {
+          'Cookie': widget.sessionCookie,
+          'User-Agent': 'FlutterApp',
+        },
+      );
+      
+      int deviceCount = 0;
+      if (devicesResponse.statusCode == 200) {
+        final devicesData = jsonDecode(devicesResponse.body);
+        if (devicesData is List) {
+          deviceCount = devicesData.length;
+        } else if (devicesData is Map && devicesData.containsKey('data')) {
+           // Handle if wrapped in 'data'
+           if (devicesData['data'] is List) deviceCount = (devicesData['data'] as List).length;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          userData = {
+            "name": username,
+            "id": userId,
+            "email": email,
+            "mobile": mobile,
+            "address": address,
+            "role": "Orchard Manager",
+            "devices": deviceCount,
+          };
+          isLoading = false;
+        });
+      }
+
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+      if (mounted) {
+        setState(() {
+          userData = {
+            "name": "User",
+            "id": "Unknown",
+            "email": "--",
+            "mobile": "--",
+            "address": "Unknown",
+            "role": "Orchard Manager",
+            "devices": 0,
+          };
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      // 1. Get new CSRF for logout
+      final csrfResponse = await http.get(
+        Uri.parse('$_baseUrl/getCSRF'),
+         headers: {'User-Agent': 'FlutterApp'},
+      );
+      
+      if (csrfResponse.statusCode == 200) {
+        final csrfData = jsonDecode(csrfResponse.body);
+        final String csrfName = csrfData['csrf_name'];
+        final String csrfValue = csrfData['csrf_token'];
+        
+        // 2. Perform Logout
+        await http.post(
+          Uri.parse('$_baseUrl/logout'),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Cookie": widget.sessionCookie,
+            "User-Agent": "FlutterApp",
+          },
+          body: {
+            csrfName: csrfValue,
+          }
+        );
+      }
+    } catch (e) {
+      debugPrint("Logout error: $e");
+      // Continue to navigate away even if API call fails
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -51,7 +198,9 @@ class ProfileScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Column(
+      body: isLoading 
+        ? const Center(child: CircularProgressIndicator(color: Colors.white))
+        : Column(
         children: [
           const SizedBox(height: 20),
           // Profile Image Section
@@ -77,7 +226,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "Farm Admin",
+                  userData["name"] ?? "User",
                   style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -108,15 +257,17 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    _buildInfoTile("User ID", "admin", LucideIcons.user),
+                    _buildInfoTile("Farmer Name", userData["name"] ?? "User", LucideIcons.user),
                     const SizedBox(height: 16),
-                    _buildInfoTile("Role", "Orchard Manager", LucideIcons.badgeCheck),
+                    _buildInfoTile("Email", userData["email"] ?? "--", LucideIcons.mail),
                     const SizedBox(height: 16),
-                    _buildInfoTile("Email", "admin@gridsphere.in", LucideIcons.mail),
+                    _buildInfoTile("Mobile Number", userData["mobile"] ?? "--", LucideIcons.phone),
                     const SizedBox(height: 16),
-                    _buildInfoTile("Phone", "+91 98765 43210", LucideIcons.phone),
+                    _buildInfoTile("Address", userData["address"] ?? "--", LucideIcons.mapPin),
                     const SizedBox(height: 16),
-                    _buildInfoTile("Farm Location", "Himachal Pradesh, India", LucideIcons.mapPin),
+                    _buildInfoTile("User ID", userData["id"] ?? "--", LucideIcons.badgeInfo),
+                    const SizedBox(height: 16),
+                    _buildInfoTile("Active Devices", "${userData["devices"] ?? 0} Sensors", LucideIcons.radio),
                     
                     const SizedBox(height: 40),
                     
@@ -124,7 +275,7 @@ class ProfileScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => _handleLogout(context),
+                        onPressed: _handleLogout,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade50,
                           foregroundColor: Colors.red.shade700,
