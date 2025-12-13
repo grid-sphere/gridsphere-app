@@ -44,7 +44,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedDeviceId = ""; // Start empty
   
-  // --- NEW: Devices List ---
+  // --- Devices List ---
   List<dynamic> _devices = [];
 
   // --- Field Information State ---
@@ -99,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- NEW: Helper to Switch Devices ---
+  // --- Helper to Switch Devices ---
   void _switchDevice(String deviceId, String location) {
     if (selectedDeviceId == deviceId) return;
 
@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- NEW: Fetch User Info for Farmer Name ---
+  // --- Fetch User Info for Farmer Name ---
   Future<void> _fetchUserInfo() async {
     try {
       final response = await http.get(
@@ -422,9 +422,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.sensors), label: "Sensors"),
+          BottomNavigationBarItem(icon: Icon(LucideIcons.shieldCheck), label: "Protection"),
           BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: "Map"),
+          BottomNavigationBarItem(icon: Icon(LucideIcons.layers), label: "Soil"),
           BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: "Alerts"),
         ],
       ),
@@ -441,7 +441,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
-                child: isLoading
+                child: ClipRRect( 
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                  child: isLoading
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFF166534)))
                     : SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -466,6 +468,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ],
                         ),
                       ),
+                ),
               ),
             ),
           ],
@@ -557,11 +560,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500]),
         ),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF374151)),
-          overflow: TextOverflow.ellipsis, // Handle long text
-          maxLines: 2,
+        // --- FittedBox to handle text overflow ---
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF374151)),
+            maxLines: 2,
+          ),
         ),
       ],
     );
@@ -613,13 +620,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Image.asset(
-                  'assets/logo.png', 
+                  'assets/logo.png',
                   width: 24,
                   height: 24,
-                  // If the image fails to load (missing file), show the Icon instead
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(
-                      Icons.public, // Represents 'Grid Sphere'
+                      Icons.public, 
                       size: 24,
                       color: Colors.white,
                     );
@@ -635,14 +641,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   
-                  // --- NEW: Device Selector Toggle ---
-                  // If we have devices, show a dropdown trigger. If not, showing simplified text.
+                  // --- Device Selector Toggle ---
                   if (_devices.isNotEmpty)
                     PopupMenuButton<String>(
                       onSelected: (String id) {
-                         // Find the device object
                          final device = _devices.firstWhere((d) => d['d_id'].toString() == id);
-                         // Get Name to display or fallback to location/id
                          String name = device['farm_name']?.toString() ?? "Field ${device['d_id']}";
                          _switchDevice(id, name);
                       },
@@ -664,7 +667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              deviceLocation, // Reusing location variable for display name temporarily
+                              deviceLocation, 
                               style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -714,8 +717,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      // --- FIX: Adjusted childAspectRatio to give cards more height ---
-      childAspectRatio: 0.85, 
+      // --- Adjusted childAspectRatio to 1.0 (Compact Square) ---
+      childAspectRatio: 1.0, 
       children: [
         _ConditionCard(
           title: "Air Temp",
@@ -746,16 +749,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         ),
         _ConditionCard(
-          title: "Leaf",
+          title: "Leaf Wetness",
           customContent: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+            mainAxisAlignment: MainAxisAlignment.center, 
             children: [
-              Text("Leaf Wetness", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF374151))),
-              const SizedBox(height: 4), // Reduced spacing
+              Text("Leaf Wetness", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF374151))),
+              const SizedBox(height: 4), 
               Row(
                 children: [
-                  Text("${sensorData?['leaf_wetness']}", style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF111827))),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "${sensorData?['leaf_wetness']}",
+                      style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF111827))
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 24),
                 ],
@@ -767,23 +776,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           iconColor: const Color(0xFF15803D),
           child: _MiniLineChart(color: const Color(0xFF15803D), dataPoints: historyData['leaf_wetness'] ?? []),
         ),
-        _ConditionCard(
-          title: "Soil Temp\n(10cm)",
-          value: "${sensorData?['soil_temp']}°C",
-          icon: Icons.device_thermostat, 
-          iconBg: const Color(0xFFFEF3C7),
-          iconColor: const Color(0xFFD97706),
-          child: _MiniLineChart(color: const Color(0xFFD97706), dataPoints: historyData['soil_temp'] ?? []),
-        ),
-        _ConditionCard(
-          title: "Soil\nMoisture",
-          subtitle: "(avg)",
-          value: "${sensorData?['soil_moisture']}% VWC",
-          icon: LucideIcons.waves,
-          iconBg: const Color(0xFFE0E7FF),
-          iconColor: const Color(0xFF4F46E5),
-          child: _MiniLineChart(color: const Color(0xFF4F46E5), dataPoints: historyData['soil_moisture'] ?? []),
-        ),
+        
+        // --- Soil Temp and Soil Moisture removed from here ---
+
         _ConditionCard(
           title: "Today's\nRainfall",
           subtitle: "Today",
@@ -883,7 +878,8 @@ class _ConditionCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        // --- Reduced padding for better fit on small cards ---
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), 
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -902,7 +898,8 @@ class _ConditionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  // --- Reduced Icon padding ---
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: iconBg,
                     borderRadius: BorderRadius.circular(10),
@@ -916,7 +913,7 @@ class _ConditionCard extends StatelessWidget {
                     child: Text(
                       title,
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 12, // Reduced font size
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[700],
                       ),
@@ -927,28 +924,35 @@ class _ConditionCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             if (customContent != null)
               Expanded(child: customContent!)
             else ...[
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400]),
+                  style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[400]),
                 ),
               const SizedBox(height: 4),
-              Text(
-                value ?? "--",
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF111827),
+              // --- Wrapped Value in FittedBox ---
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value ?? "--",
+                  style: GoogleFonts.inter(
+                    fontSize: 22, // Slightly reduced font size
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF111827),
+                  ),
                 ),
               ),
             ],
+            // Push content to the bottom using Spacer if no custom content
             if (child != null) ...[
-              const Spacer(),
-              child!,
+               const Spacer(), 
+               const SizedBox(height: 4),
+               child!,
             ]
           ],
         ),
@@ -965,7 +969,7 @@ class _MiniLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 30,
+      height: 25, // --- Reduced graph height to 25 ---
       width: double.infinity,
       child: CustomPaint(
         painter: _ChartPainter(color, dataPoints),

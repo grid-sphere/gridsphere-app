@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // Import for saving session
 import 'dashboard_screen.dart';
 
 class GoogleFonts {
@@ -37,15 +38,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final String _baseUrl = "https://gridsphere.in/station/api";
   
   // --- CONSTANT: User Agent ---
-  // Must match the one used in DashboardScreen exactly!
+  // Critical: Must match the one used in DashboardScreen exactly to keep session alive.
   final String _userAgent = "FlutterApp";
 
   // --- COOKIE JAR ---
+  // Store cookies in a map to automatically handle deduplication
   final Map<String, String> _cookieJar = {};
 
+  // --- ROBUST PARSER ---
+  // Extracts "key=value" pairs and ignores attributes like 'path', 'expires', etc.
   void _updateCookieJar(String? rawCookies) {
     if (rawCookies == null || rawCookies.isEmpty) return;
 
+    // Regex to find "Key=Value" patterns. 
     final regex = RegExp(r'([a-zA-Z0-9_-]+)=([^;]+)');
     final matches = regex.allMatches(rawCookies);
 
@@ -63,6 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Helper to convert the Map back into a header string
   String _getCookieHeader() {
     return _cookieJar.entries.map((e) => "${e.key}=${e.value}").join("; ");
   }
@@ -87,6 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final String csrfName = csrfData['csrf_name'];
           final String csrfValue = csrfData['csrf_token'];
           
+          // 1. Update Cookie Jar with CSRF cookies
           _updateCookieJar(csrfResponse.headers['set-cookie']);
 
           if (_cookieJar.isNotEmpty) {
@@ -97,13 +104,12 @@ class _LoginScreenState extends State<LoginScreen> {
               loginUrl,
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Cookie": _getCookieHeader(),
-                // FIX: Send the same User-Agent here
-                "User-Agent": _userAgent, 
+                "Cookie": _getCookieHeader(), // Send clean cookies
+                "User-Agent": _userAgent,     // Send matching User-Agent
               },
               body: {
                 "username": _idController.text.trim(),
-                "password": _passwordController.text,
+                "password": _passwordController.text.trim(), // Added trim for safety
                 csrfName: csrfValue, 
               },
             );
@@ -113,10 +119,15 @@ class _LoginScreenState extends State<LoginScreen> {
               
               if (loginData['status'] == true || loginData['status'] == 'success') {
                 if (mounted) {
+                  // 2. Update Cookie Jar with Session Rotation cookies from Login
                   _updateCookieJar(loginResponse.headers['set-cookie']);
                   
                   final String finalCookies = _getCookieHeader();
                   debugPrint("✅ Login Success! Clean Cookies: $finalCookies");
+
+                  // --- SAVE SESSION PERSISTENTLY ---
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('session_cookie', finalCookies);
 
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
@@ -137,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _showError('Server Error: ${csrfResponse.statusCode}');
         }
       } catch (e) {
-        _showError('Connection failed.');
+        _showError('Connection failed. Check internet.');
         debugPrint("Login Exception: $e");
       } finally {
         if (mounted) {

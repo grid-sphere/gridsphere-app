@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // Import for session management
 import 'dart:convert';
 import 'login_screen.dart'; 
 
@@ -152,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final String csrfName = csrfData['csrf_name'];
         final String csrfValue = csrfData['csrf_token'];
         
-        // 2. Perform Logout
+        // 2. Perform Logout via API
         await http.post(
           Uri.parse('$_baseUrl/logout'),
           headers: {
@@ -169,6 +170,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint("Logout error: $e");
       // Continue to navigate away even if API call fails
     }
+
+    // --- CLEAR COOKIE FROM STORAGE ---
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('session_cookie');
+    // ---------------------------------
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(

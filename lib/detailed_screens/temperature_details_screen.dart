@@ -31,7 +31,7 @@ class TemperatureDetailsScreen extends StatefulWidget {
 }
 
 class _TemperatureDetailsScreenState extends State<TemperatureDetailsScreen> {
-  int _selectedIndex = 1; // 'Sensors' tab is selected by default
+  // Removed _selectedIndex as we are removing the bottom nav bar
 
   @override
   Widget build(BuildContext context) {
@@ -66,53 +66,7 @@ class _TemperatureDetailsScreenState extends State<TemperatureDetailsScreen> {
         ],
       ),
 
-      // --- Floating Action Button (Robot) Centered ---
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ChatScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF166534), // Brand Green
-        elevation: 4.0,
-        shape: const CircleBorder(),
-        child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
-      ),
-
-      // --- Fixed Footer (Bottom Navigation Bar) ---
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF166534),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
-        onTap: (index) {
-          if (index == 2) return; // Ignore dummy center item
-
-          setState(() => _selectedIndex = index);
-
-          if (index == 0) {
-            Navigator.pop(context); // Go back to Home
-          } else if (index == 4) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AlertsScreen()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.sensors), label: "Sensors"),
-          // --- Dummy Item for Spacing ---
-          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""), 
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: "Map"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: "Alerts"),
-        ],
-      ),
+      // --- Removed FAB and Bottom Navigation Bar ---
 
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
