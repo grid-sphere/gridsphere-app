@@ -44,7 +44,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedDeviceId = ""; // Start empty
   
-  // --- Devices List ---
+  // --- NEW: Devices List ---
   List<dynamic> _devices = [];
 
   // --- Field Information State ---
@@ -99,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- Helper to Switch Devices ---
+  // --- NEW: Helper to Switch Devices ---
   void _switchDevice(String deviceId, String location) {
     if (selectedDeviceId == deviceId) return;
 
@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- Fetch User Info for Farmer Name ---
+  // --- NEW: Fetch User Info for Farmer Name ---
   Future<void> _fetchUserInfo() async {
     try {
       final response = await http.get(
@@ -441,7 +441,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
-                child: ClipRRect( 
+                child: ClipRRect( // Clip content to rounded corners
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                   child: isLoading
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFF166534)))
@@ -730,7 +730,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => TemperatureDetailsScreen(sensorData: sensorData)),
+              MaterialPageRoute(
+                builder: (context) => TemperatureDetailsScreen(
+                  sensorData: sensorData,
+                  deviceId: selectedDeviceId, // Pass device ID
+                  sessionCookie: widget.sessionCookie, // Pass Cookie
+                )
+              ),
             );
           },
         ),
@@ -744,7 +750,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => HumidityDetailsScreen(sensorData: sensorData)),
+              MaterialPageRoute(
+                builder: (context) => HumidityDetailsScreen(
+                  sensorData: sensorData,
+                  // --- Add these two lines ---
+                  deviceId: selectedDeviceId,
+                  sessionCookie: widget.sessionCookie,
+                ),
+              ),
             );
           },
         ),
