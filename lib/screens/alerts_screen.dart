@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dashboard_screen.dart';
 import 'protection_screen.dart';
 import 'soil_screen.dart';
@@ -14,7 +16,6 @@ class GoogleFonts {
     double? letterSpacing,
   }) {
     return TextStyle(
-      fontFamily: 'Inter',
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -26,11 +27,18 @@ class GoogleFonts {
 class AlertsScreen extends StatefulWidget {
   final String sessionCookie;
   final String deviceId;
+  // State variables passed from Dashboard to maintain context
+  final Map<String, dynamic>? sensorData;
+  final double latitude;
+  final double longitude;
 
   const AlertsScreen({
     super.key,
     required this.sessionCookie,
     this.deviceId = "",
+    this.sensorData,
+    this.latitude = 0.0,
+    this.longitude = 0.0,
   });
 
   @override
@@ -39,6 +47,35 @@ class AlertsScreen extends StatefulWidget {
 
 class _AlertsScreenState extends State<AlertsScreen> {
   int _selectedIndex = 4; // 4 corresponds to "Alerts" in the BottomNavBar
+  List<dynamic> _devices = [];
+  final String _baseUrl = "https://gridsphere.in/station/api";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDevices();
+  }
+
+  // Fetch device list to ensure we have lat/lon mapping available
+  Future<void> _fetchDevices() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/getDevices'),
+        headers: {'Cookie': widget.sessionCookie, 'User-Agent': 'FlutterApp'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List list = (data is List) ? data : (data['data'] ?? []);
+        if (mounted) {
+          setState(() {
+            _devices = list;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching devices in Alerts: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +105,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ChatScreen()),
+            MaterialPageRoute(builder: (context) => ChatScreen(deviceId: widget.deviceId)),
           );
         },
         backgroundColor: const Color(0xFF166534),
@@ -108,15 +145,40 @@ class _AlertsScreenState extends State<AlertsScreen> {
               ),
             );
           } else if (index == 3) {
+            // Corrected mapping logic for Soil Screen
+            double lat = widget.latitude;
+            double lon = widget.longitude;
+
+            // If coordinates were not passed, try to find them in the fetched device list
+            if (lat == 0.0 || lon == 0.0) {
+              try {
+                final device = _devices.firstWhere(
+                  (d) => d['d_id'].toString() == widget.deviceId,
+                  orElse: () => null,
+                );
+                if (device != null) {
+                  lat = double.tryParse(device['latitude']?.toString() ?? "0.0") ?? 0.0;
+                  lon = double.tryParse(device['longitude']?.toString() ?? "0.0") ?? 0.0;
+                }
+              } catch (e) {
+                debugPrint("Lookup error: $e");
+              }
+            }
+
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => SoilScreen(
                   sessionCookie: widget.sessionCookie,
-                  deviceId: widget.deviceId,
+                  deviceId: widget.deviceId, 
+                  sensorData: widget.sensorData,
+                  latitude: lat,
+                  longitude: lon,
                 ),
               ),
-            );
+            ).then((_) {
+              if (mounted) setState(() => _selectedIndex = 4);
+            });
           }
         },
         items: const [
@@ -174,7 +236,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(height: 60), // Extra space to account for FAB overlay
+                      const SizedBox(height: 60), // Space for FAB overlay
                     ],
                   ),
                 ),

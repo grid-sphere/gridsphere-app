@@ -3,13 +3,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// Reusing your simple GoogleFonts class
+// Simple GoogleFonts fallback
 class GoogleFonts {
   static TextStyle inter({
     double? fontSize,
     FontWeight? fontWeight,
     Color? color,
     double? height,
+    double? letterSpacing,
   }) {
     return TextStyle(
       fontFamily: 'Inter',
@@ -17,6 +18,7 @@ class GoogleFonts {
       fontWeight: fontWeight,
       color: color,
       height: height,
+      letterSpacing: letterSpacing,
     );
   }
 }
@@ -34,18 +36,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  // Chat History - Initialized in initState to access 'widget'
   late final List<Map<String, String>> _messages;
-  
-  // Track conversation session for persistent context
   String? _conversationId;
-  
   bool _isLoading = false;
 
-  // Production API URL - Removed trailing slash
-  final String _apiUrl = "https://kesanai.onrender.com/ask"; 
+  final String _apiUrl = "https://kesan.onrender.com/api/chat"; 
 
-  // --- List of Sensor Features ---
   final List<String> _sensorFeatures = [
     "Temperature",
     "Rainfall",
@@ -53,17 +49,17 @@ class _ChatScreenState extends State<ChatScreen> {
     "Leaf Wetness",
     "Humidity",
     "Wind",
-    "Atmospheric Pressure",
     "Soil Health",
   ];
 
   @override
   void initState() {
     super.initState();
+    // A much friendlier, welcoming starting message
     _messages = [
       {
         'from': 'ai', 
-        'text': 'Hello! I am your Grid Sphere Farm Assistant. I have access to your sensor data for Device ID: ${widget.deviceId}. How can I help you today?'
+        'text': "Namaste! 🙏 I'm your Kisan AI companion from Grid Sphere. 🌾\n\nI'm here to help you keep a close eye on your farm. I have your real-time data for Device ${widget.deviceId} ready! \n\nHow is your field doing today? Would you like me to check the soil health or recent rainfall for you?"
       }
     ];
   }
@@ -72,22 +68,21 @@ class _ChatScreenState extends State<ChatScreen> {
     final textToSend = customMessage ?? _controller.text.trim();
     if (textToSend.isEmpty) return;
 
-    setState(() {
-      _messages.add({'from': 'user', 'text': textToSend});
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _messages.add({'from': 'user', 'text': textToSend});
+        _isLoading = true;
+      });
+    }
     
     _controller.clear();
     _scrollToBottom();
 
     try {
-      debugPrint("Sending request to: $_apiUrl");
-      
       final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {
           "Content-Type": "application/json",
-          // Standard Mobile User-Agent to satisfy Render's routing
           "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36", 
         },
         body: jsonEncode({
@@ -97,51 +92,42 @@ class _ChatScreenState extends State<ChatScreen> {
         }),
       ).timeout(const Duration(seconds: 60)); 
 
-      debugPrint("Response Status: ${response.statusCode}");
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
         setState(() {
-          final aiResponse = data['response'] ?? "I processed your request but have no response text.";
+          final aiResponse = data['response'] ?? "I've processed your data but couldn't generate a text response. Please try again.";
           _conversationId = data['conversation_id']; 
-          
           _messages.add({'from': 'ai', 'text': aiResponse});
-        });
-      } else if (response.statusCode == 503) {
-        // Specific handling for Service Suspended/Unavailable
-        setState(() {
-          _messages.add({
-            'from': 'ai', 
-            'text': "The Kisan AI service is currently suspended or undergoing maintenance. Please check back later."
-          });
         });
       } else {
         setState(() {
           _messages.add({
             'from': 'ai', 
-            'text': "Server Error (${response.statusCode}). The request reached the server but was rejected."
+            'text': "I'm having a little trouble connecting to the field experts right now. Please try again in a moment! 🚜"
           });
         });
       }
     } catch (e) {
-      debugPrint("Chat Exception: $e");
-      setState(() {
-        _messages.add({
-          'from': 'ai', 
-          'text': "Connection failed. Error: $e" 
+      if (mounted) {
+        setState(() {
+          _messages.add({
+            'from': 'ai', 
+            'text': "It seems I've lost my connection to the sensors. Let me check my signal and try again soon! 📡" 
+          });
         });
-      });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       _scrollToBottom();
     }
   }
 
   void _onFeatureTap(String feature) {
-    _sendMessage(customMessage: "What is the status of $feature for my field?");
+    _sendMessage(customMessage: "Can you give me a summary of the $feature data?");
   }
 
   void _scrollToBottom() {
@@ -159,124 +145,155 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF1F5F9), // Light background
       appBar: AppBar(
-        backgroundColor: const Color(0xFF166534), // Brand Green
+        backgroundColor: const Color(0xFF166534),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              "Kisan AI",
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
               ),
+              child: const Icon(LucideIcons.bot, color: Colors.white, size: 20),
             ),
-            Text(
-              "Online • Device ${widget.deviceId}",
-              style: GoogleFonts.inter(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Kisan AI",
+                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                Text(
+                  "Smart Farm Assistant",
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 11),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.rotateCcw, color: Colors.white, size: 20),
+            tooltip: "Clear Chat",
             onPressed: () {
               setState(() {
                 _messages.clear();
-                _conversationId = null; // Clear context
-                _messages.add({'from': 'ai', 'text': 'Chat context cleared. How can I help you now?'});
+                _conversationId = null;
+                _messages.add({'from': 'ai', 'text': 'How can I help you now?'});
               });
             },
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Chat History
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              itemCount: _messages.length + (_isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length) {
-                  return _buildLoadingBubble();
-                }
-                
-                final msg = _messages[index];
-                final isUser = msg['from'] == 'user';
-                
-                return _buildMessageBubble(msg['text']!, isUser);
-              },
-            ),
+          // Decorative Background Elements
+          Positioned(
+            bottom: 100,
+            right: -50,
+            child: Icon(LucideIcons.leaf, size: 300, color: const Color(0xFF166534).withOpacity(0.03)),
+          ),
+          Positioned(
+            top: 50,
+            left: -30,
+            child: Icon(LucideIcons.sprout, size: 150, color: const Color(0xFF166534).withOpacity(0.03)),
           ),
           
-          // --- Quick Feature Actions ---
-          _buildQuickActions(),
+          Column(
+            children: [
+              // Chat History
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  itemCount: _messages.length + (_isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length) {
+                      return _buildLoadingBubble();
+                    }
+                    
+                    final msg = _messages[index];
+                    final isUser = msg['from'] == 'user';
+                    
+                    return _buildMessageBubble(msg['text']!, isUser);
+                  },
+                ),
+              ),
+              
+              // Quick Actions
+              _buildQuickActions(),
 
-          // Input Area
-          _buildInputArea(),
+              // Input Area
+              _buildInputArea(),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildMessageBubble(String text, bool isUser) {
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(14),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-        decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF166534) : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: isUser ? const Radius.circular(20) : Radius.circular(4),
-            bottomRight: isUser ? Radius.circular(4) : const Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bot icon container removed to simplify the chat box UI
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              decoration: BoxDecoration(
+                color: isUser ? const Color(0xFF166534) : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(20),
+                  topRight: const Radius.circular(20),
+                  bottomLeft: isUser ? const Radius.circular(20) : Radius.circular(4),
+                  bottomRight: isUser ? Radius.circular(4) : const Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                text,
+                style: GoogleFonts.inter(
+                  color: isUser ? Colors.white : const Color(0xFF1F2937),
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
             ),
-          ],
-        ),
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            color: isUser ? Colors.white : const Color(0xFF374151),
-            fontSize: 15,
-            height: 1.4,
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildQuickActions() {
     return Container(
-      height: 50,
-      color: Colors.transparent,
+      height: 44,
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _sensorFeatures.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 8),
+            padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
               label: Text(
                 _sensorFeatures[index],
@@ -288,11 +305,9 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               backgroundColor: Colors.white,
               elevation: 0,
-              pressElevation: 2,
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
+              pressElevation: 0,
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               onPressed: () => _onFeatureTap(_sensorFeatures[index]),
             ),
           );
@@ -303,9 +318,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 16),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -320,13 +336,14 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: TextField(
                 controller: _controller,
                 style: GoogleFonts.inter(fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: "Ask Kisan AI anything...",
+                  hintText: "Type your farm query...",
                   hintStyle: GoogleFonts.inter(color: Colors.grey[500]),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -338,10 +355,11 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 12),
           GestureDetector(
             onTap: _isLoading ? null : () => _sendMessage(),
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _isLoading ? Colors.grey : const Color(0xFF166534),
+                color: _isLoading ? Colors.grey[300] : const Color(0xFF166534),
                 shape: BoxShape.circle,
                 boxShadow: [
                   if (!_isLoading)
@@ -352,7 +370,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                 ],
               ),
-              child: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+              child: Icon(
+                _isLoading ? LucideIcons.loader2 : LucideIcons.send, 
+                color: Colors.white, 
+                size: 20
+              ),
             ),
           ),
         ],
@@ -361,37 +383,37 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildLoadingBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2)),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 14, 
-              height: 14, 
-              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF166534))
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 12, 
+                  height: 12, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF166534))
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Analyzing field data...",
+                  style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Text(
-              "Kisan AI is thinking...",
-              style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
