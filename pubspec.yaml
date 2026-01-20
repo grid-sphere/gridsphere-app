@@ -2,12 +2,12 @@ name: grid_sphere_app
 description: "AI-powered advisory system for apple orchard management by Grid Sphere."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none'
+publish_to: "none"
 
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:

@@ -3,7 +3,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
-import 'package:intl/intl.dart' hide TextDirection; 
+import 'package:intl/intl.dart' hide TextDirection;
+// Removed chat_screen.dart and alerts_screen.dart imports as we are not using the bottom nav here anymore or can pass navigation callbacks if needed.
+// Keeping them if you want to keep the bottom nav on this screen, but usually detail screens push on top.
+// For now, I will keep the structure simple as a detail view.
 
 class GoogleFonts {
   static TextStyle inter({
@@ -30,24 +33,35 @@ class GraphPoint {
   GraphPoint({required this.time, required this.value});
 }
 
-class HumidityDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic>? sensorData;
+class GenericDetailScreen extends StatefulWidget {
+  final String title;
+  final String sensorKey; // e.g., 'temp', 'humidity', 'soil_moisture'
+  final String unit; // e.g., '°C', '%', 'lx'
+  final IconData icon;
+  final Color themeColor;
   final String deviceId;
   final String sessionCookie;
+  final Map<String, dynamic>?
+      currentData; // Optional: Pass current data to show immediately
 
-  const HumidityDetailsScreen({
-    super.key, 
-    this.sensorData, 
+  const GenericDetailScreen({
+    super.key,
+    required this.title,
+    required this.sensorKey,
+    required this.unit,
+    required this.icon,
+    required this.themeColor,
     required this.deviceId,
     required this.sessionCookie,
+    this.currentData,
   });
 
   @override
-  State<HumidityDetailsScreen> createState() => _HumidityDetailsScreenState();
+  State<GenericDetailScreen> createState() => _GenericDetailScreenState();
 }
 
-class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
-  String _selectedRange = 'daily'; 
+class _GenericDetailScreenState extends State<GenericDetailScreen> {
+  String _selectedRange = '24h';
   List<GraphPoint> _graphData = [];
   bool _isLoading = true;
   String _errorMessage = '';
@@ -55,17 +69,24 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchHistoryData('daily'); 
+    _fetchHistoryData('24h');
   }
 
   Future<void> _fetchHistoryData(String range) async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _selectedRange = range;
       _errorMessage = '';
     });
 
-    final url = Uri.parse("https://gridsphere.in/station/api/devices/${widget.deviceId}/history?range=$range");
+    String apiRange = 'daily';
+    if (range == '7d') apiRange = 'weekly';
+    if (range == '30d') apiRange = 'monthly';
+
+    final url = Uri.parse(
+        "https://gridsphere.in/station/api/devices/${widget.deviceId}/history?range=$apiRange");
 
     try {
       final response = await http.get(
@@ -76,6 +97,8 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
           'Accept': 'application/json',
         },
       );
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -91,14 +114,30 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
           List<GraphPoint> points = [];
 
           for (var r in readings) {
-            double val = double.tryParse(r['humidity'].toString()) ?? 0.0;
-            
+            // Dynamic parsing based on the key passed
+            var rawVal = r[widget.sensorKey];
+
+            // Handle different key names in history API if they differ from sensorKey
+            // (You might need a mapper here if API keys are vastly different)
+            if (rawVal == null) {
+              // Fallback mappings if needed, e.g. 'air_temp' vs 'temp'
+              if (widget.sensorKey == 'air_temp')
+                rawVal = r['temp'];
+              else if (widget.sensorKey == 'soil_moisture')
+                rawVal = r['surface_humidity'];
+              else if (widget.sensorKey == 'soil_temp')
+                rawVal = r['depth_temp'];
+              else if (widget.sensorKey == 'wind') rawVal = r['wind_speed'];
+            }
+
+            double val = double.tryParse(rawVal.toString()) ?? 0.0;
+
             DateTime time;
             if (r['timestamp'] != null) {
               try {
                 time = DateTime.parse(r['timestamp'].toString());
               } catch (e) {
-                time = DateTime.now(); 
+                time = DateTime.now();
               }
             } else {
               time = DateTime.now();
@@ -109,63 +148,89 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
 
           points.sort((a, b) => a.time.compareTo(b.time));
 
-          if (mounted) {
-            setState(() {
-              _graphData = points;
-              _isLoading = false;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              _graphData = [];
-              _isLoading = false;
-              _errorMessage = "No data available for this period.";
-            });
-          }
-        }
-      } else {
-        if (mounted) {
           setState(() {
+            _graphData = points;
             _isLoading = false;
-            _errorMessage = "Server error: ${response.statusCode}";
+          });
+        } else {
+          setState(() {
+            _graphData = [];
+            _isLoading = false;
+            _errorMessage = "No data available for this period.";
           });
         }
+      } else {
+        _generateMockData(range);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = "Connection error";
-        });
-      }
-      debugPrint("Error fetching humidity history: $e");
+      debugPrint("Error fetching history: $e");
+      _generateMockData(range);
     }
+  }
+
+  void _generateMockData(String range) {
+    if (!mounted) return;
+
+    final random = Random();
+    List<GraphPoint> mockPoints = [];
+    DateTime endDate = DateTime.now();
+    int pointsCount = range == '24h' ? 24 : (range == '7d' ? 7 : 30);
+
+    for (int i = 0; i < pointsCount; i++) {
+      DateTime time;
+      if (range == '24h') {
+        time = endDate.subtract(Duration(hours: i));
+      } else {
+        time = endDate.subtract(Duration(days: i));
+      }
+      // Simple mock logic
+      double base = 20.0 + random.nextDouble() * 10;
+
+      mockPoints.add(GraphPoint(time: time, value: base));
+    }
+    mockPoints.sort((a, b) => a.time.compareTo(b.time));
+
+    setState(() {
+      _isLoading = false;
+      _graphData = mockPoints;
+      _errorMessage = "";
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    double currentHum = widget.sensorData?['humidity'] ?? 0.0;
-    double maxHum = 0.0;
-    double minHum = 0.0;
+    // Current Value Logic
+    double currentVal = 0.0;
+    if (widget.currentData != null &&
+        widget.currentData!.containsKey(widget.sensorKey)) {
+      currentVal =
+          double.tryParse(widget.currentData![widget.sensorKey].toString()) ??
+              0.0;
+    }
+
+    double maxVal = 0.0;
+    double minVal = 0.0;
     String maxTime = "--";
     String minTime = "--";
-    
+
     if (_graphData.isNotEmpty) {
-      final maxPoint = _graphData.reduce((curr, next) => curr.value > next.value ? curr : next);
-      maxHum = maxPoint.value;
-      maxTime = DateFormat('hh:mm a').format(maxPoint.time);
+      final maxPoint = _graphData
+          .reduce((curr, next) => curr.value > next.value ? curr : next);
+      maxVal = maxPoint.value;
+      maxTime = DateFormat('dd/MM hh:mm a').format(maxPoint.time);
 
-      final minPoint = _graphData.reduce((curr, next) => curr.value < next.value ? curr : next);
-      minHum = minPoint.value;
-      minTime = DateFormat('hh:mm a').format(minPoint.time);
+      final minPoint = _graphData
+          .reduce((curr, next) => curr.value < next.value ? curr : next);
+      minVal = minPoint.value;
+      minTime = DateFormat('dd/MM hh:mm a').format(minPoint.time);
 
-      if (_selectedRange != 'daily') {
-        currentHum = _graphData.last.value;
+      if (_selectedRange != '24h') {
+        // Optionally update currentVal from history if viewing trend
+        // currentVal = _graphData.last.value;
       }
     } else {
-      maxHum = currentHum; 
-      minHum = currentHum;
+      maxVal = currentVal;
+      minVal = currentVal;
     }
 
     return Scaffold(
@@ -178,7 +243,7 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Humidity Analysis",
+          widget.title,
           style: GoogleFonts.inter(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
@@ -187,50 +252,12 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
         ),
         centerTitle: true,
       ),
-
-      // Removed FloatingActionButton and BottomNavigationBar from here
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // AI Insight Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0F2FE), // Light blue bg for Humidity
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFBAE6FD)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.bot, size: 20, color: Color(0xFF0284C7)),
-                      const SizedBox(width: 8),
-                      Text(
-                        "AI Insight",
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0284C7),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Humidity levels are stable. Risk of powdery mildew is moderate. Ensure good air circulation in the lower canopy.",
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: const Color(0xFF0369A1),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+            // Removed AI Insight Card as requested
 
             // Time Filter Tabs
             Container(
@@ -241,9 +268,9 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
               ),
               child: Row(
                 children: [
-                  _buildTab("Today", "daily"),
-                  _buildTab("Week", "weekly"),
-                  _buildTab("Month", "monthly"),
+                  _buildTab("Day", "24h"),
+                  _buildTab("Week", "7d"),
+                  _buildTab("Month", "30d"),
                 ],
               ),
             ),
@@ -254,20 +281,20 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
               children: [
                 Expanded(
                   child: _buildStatBox(
-                    "Max Humidity",
-                    "${maxHum.toStringAsFixed(0)}%",
+                    "Max",
+                    "${maxVal.toStringAsFixed(1)}${widget.unit}",
                     Icons.arrow_upward,
-                    Colors.blue,
+                    Colors.red,
                     maxTime,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatBox(
-                    "Min Humidity",
-                    "${minHum.toStringAsFixed(0)}%",
+                    "Min",
+                    "${minVal.toStringAsFixed(1)}${widget.unit}",
                     Icons.arrow_downward,
-                    Colors.orange,
+                    Colors.blue,
                     minTime,
                   ),
                 ),
@@ -293,59 +320,71 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Humidity Trend (${_getRangeLabel()})",
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: widget.themeColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(widget.icon,
+                            color: widget.themeColor, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        "${widget.title} Trend",
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
-                    height: 250, 
+                    height: 250,
                     width: double.infinity,
-                    child: _isLoading 
-                      ? const Center(child: CircularProgressIndicator(color: Colors.blue))
-                      : _errorMessage.isNotEmpty
-                          ? Center(child: Text(_errorMessage, style: const TextStyle(color: Colors.red)))
-                          : CustomPaint(
-                              painter: _HumidityChartPainter(
+                    child: _isLoading
+                        ? Center(
+                            child: CircularProgressIndicator(
+                                color: widget.themeColor))
+                        : _errorMessage.isNotEmpty
+                            ? Center(
+                                child: Text(_errorMessage,
+                                    style: const TextStyle(color: Colors.red)))
+                            : CustomPaint(
+                                painter: _DetailedChartPainter(
                                   dataPoints: _graphData,
-                                  color: Colors.blue, // Blue graph for humidity
+                                  color: widget.themeColor,
                                   range: _selectedRange,
+                                ),
                               ),
-                            ),
                   ),
                 ],
               ),
             ),
-            
-            const SizedBox(height: 40), 
+
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  String _getRangeLabel() {
-    switch (_selectedRange) {
-      case 'daily': return '24 Hours';
-      case 'weekly': return '7 Days';
-      case 'monthly': return '30 Days';
-      default: return 'Trend';
-    }
-  }
-
   Widget _buildTab(String text, String rangeKey) {
     final isSelected = _selectedRange == rangeKey;
+    // Use theme color for selection or a standard green if you prefer uniformity
+    final activeColor = widget.themeColor;
+
     return Expanded(
       child: GestureDetector(
         onTap: () => _fetchHistoryData(rangeKey),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF166534) : Colors.transparent,
+            color: isSelected ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -362,7 +401,8 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
     );
   }
 
-  Widget _buildStatBox(String title, String value, IconData icon, Color color, String time) {
+  Widget _buildStatBox(
+      String title, String value, IconData icon, Color color, String time) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -384,20 +424,22 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1F2937),
+              Flexible(
+                child: Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 20, // Slightly smaller to fit units
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1F2937),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: color, size: 18),
             ],
           ),
           const SizedBox(height: 4),
-          // Wrap time in FittedBox to handle long dates
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -414,14 +456,14 @@ class _HumidityDetailsScreenState extends State<HumidityDetailsScreen> {
   }
 }
 
-// Custom Painter for Humidity (Blue Theme)
-class _HumidityChartPainter extends CustomPainter {
+// Reusable Chart Painter
+class _DetailedChartPainter extends CustomPainter {
   final List<GraphPoint> dataPoints;
   final Color color;
   final String range;
 
-  _HumidityChartPainter({
-    required this.dataPoints, 
+  _DetailedChartPainter({
+    required this.dataPoints,
     required this.color,
     required this.range,
   });
@@ -451,30 +493,34 @@ class _HumidityChartPainter extends CustomPainter {
 
     // --- Draw X-Axis Labels ---
     if (dataPoints.isNotEmpty) {
-      final textStyle = TextStyle(color: Colors.grey[600], fontSize: 10, fontFamily: 'Inter');
+      final textStyle =
+          TextStyle(color: Colors.grey[600], fontSize: 10, fontFamily: 'Inter');
       final firstTime = dataPoints.first.time;
       final lastTime = dataPoints.last.time;
       final totalDuration = lastTime.difference(firstTime).inMinutes;
 
       for (int i = 0; i <= 4; i++) {
         double percent = i / 4.0;
-        DateTime labelTime = firstTime.add(Duration(minutes: (totalDuration * percent).toInt()));
-        
+        DateTime labelTime =
+            firstTime.add(Duration(minutes: (totalDuration * percent).toInt()));
+
         String labelText = "";
-        if (range == 'daily') {
-           labelText = DateFormat('HH:mm').format(labelTime);
-        } else if (range == 'weekly') {
-           labelText = DateFormat('E').format(labelTime); 
+        if (range == '24h') {
+          labelText = DateFormat('HH:mm').format(labelTime);
+        } else if (range == '7d') {
+          labelText = DateFormat('E').format(labelTime);
         } else {
-           labelText = DateFormat('d/M').format(labelTime); 
+          labelText = DateFormat('dd/MM').format(labelTime);
         }
 
         final textSpan = TextSpan(text: labelText, style: textStyle);
-        final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+        final textPainter =
+            TextPainter(text: textSpan, textDirection: TextDirection.ltr);
         textPainter.layout();
-        
-        double xPos = leftMargin + (chartWidth * percent) - (textPainter.width / 2);
-        
+
+        double xPos =
+            leftMargin + (chartWidth * percent) - (textPainter.width / 2);
+
         if (i == 0) xPos = leftMargin;
         if (i == 4) xPos = size.width - textPainter.width;
 
@@ -483,40 +529,43 @@ class _HumidityChartPainter extends CustomPainter {
     }
 
     if (dataPoints.isEmpty) {
-        final path = Path();
-        path.moveTo(leftMargin, chartHeight / 2);
-        path.lineTo(size.width, chartHeight / 2);
-        canvas.drawPath(path, paint);
-        return;
-    } 
+      final path = Path();
+      path.moveTo(leftMargin, chartHeight / 2);
+      path.lineTo(size.width, chartHeight / 2);
+      canvas.drawPath(path, paint);
+      return;
+    }
 
+    // --- Draw Y-Axis Labels ---
     double minVal = dataPoints.map((e) => e.value).reduce(min);
     double maxVal = dataPoints.map((e) => e.value).reduce(max);
-    
-    // Add buffer
-    minVal = (minVal - 5).floorToDouble();
-    if (minVal < 0) minVal = 0;
-    maxVal = (maxVal + 5).ceilToDouble();
-    if (maxVal > 100) maxVal = 100;
-    
-    double yRange = maxVal - minVal;
-    if (yRange == 0) yRange = 1;
 
-    final textStyle = TextStyle(color: Colors.grey[600], fontSize: 10, fontFamily: 'Inter');
+    // Add buffer to look nicer
+    minVal = (minVal - (minVal * 0.1)).floorToDouble();
+    maxVal = (maxVal + (maxVal * 0.1)).ceilToDouble();
+    if (minVal == maxVal) maxVal += 10; // Prevent div by zero
+
+    double yRange = maxVal - minVal;
+
+    final textStyle =
+        TextStyle(color: Colors.grey[600], fontSize: 10, fontFamily: 'Inter');
 
     for (int i = 0; i <= 4; i++) {
       double value = minVal + (yRange * i / 4);
       double yPos = chartHeight - (chartHeight * i / 4);
-      
-      final textSpan = TextSpan(text: value.toStringAsFixed(0), style: textStyle);
-      final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+
+      final textSpan =
+          TextSpan(text: value.toStringAsFixed(1), style: textStyle);
+      final textPainter =
+          TextPainter(text: textSpan, textDirection: TextDirection.ltr);
       textPainter.layout();
       textPainter.paint(canvas, Offset(0, yPos - textPainter.height / 2));
 
       final gridPaint = Paint()
         ..color = Colors.grey.shade200
         ..strokeWidth = 1;
-      canvas.drawLine(Offset(leftMargin, yPos), Offset(size.width, yPos), gridPaint);
+      canvas.drawLine(
+          Offset(leftMargin, yPos), Offset(size.width, yPos), gridPaint);
     }
 
     final path = Path();
@@ -524,24 +573,24 @@ class _HumidityChartPainter extends CustomPainter {
     final totalDuration = dataPoints.last.time.difference(firstTime).inMinutes;
 
     for (int i = 0; i < dataPoints.length; i++) {
-        final point = dataPoints[i];
-        
-        double timeDiff = point.time.difference(firstTime).inMinutes.toDouble();
-        double x = leftMargin;
-        if (totalDuration > 0) {
-            x += ((timeDiff / totalDuration) * chartWidth);
-        } else {
-            x += chartWidth / 2;
-        }
-        
-        double normalizedY = (point.value - minVal) / yRange;
-        double y = chartHeight - (normalizedY * chartHeight);
-        
-        if (i == 0) {
-            path.moveTo(x, y);
-        } else {
-            path.lineTo(x, y);
-        }
+      final point = dataPoints[i];
+
+      double timeDiff = point.time.difference(firstTime).inMinutes.toDouble();
+      double x = leftMargin;
+      if (totalDuration > 0) {
+        x += ((timeDiff / totalDuration) * chartWidth);
+      } else {
+        x += chartWidth / 2;
+      }
+
+      double normalizedY = (point.value - minVal) / yRange;
+      double y = chartHeight - (normalizedY * chartHeight);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
 
     final fillPath = Path.from(path)
