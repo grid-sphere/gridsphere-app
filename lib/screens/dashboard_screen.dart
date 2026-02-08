@@ -10,6 +10,8 @@ import 'alerts_screen.dart';
 import 'protection_screen.dart';
 import 'soil_screen.dart';
 import 'generic_detail_screen.dart'; // Import the new generic screen
+import 'cement_dust_spread_screen.dart';
+import 'cement_emission_screen.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -44,6 +46,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedDeviceId = "";
   List<dynamic> _devices = [];
+  String _selectedRole = "Agriculture";
   String farmerName = "--";
   String lastOnline = "--";
   String deviceStatus = "Offline";
@@ -412,45 +415,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
           setState(() => _selectedIndex = index);
 
           if (index == 1) {
-            // Protection Tab
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ProtectionScreen(
-                        sessionCookie: widget.sessionCookie,
-                        deviceId: selectedDeviceId,
-                      )),
-            ).then((_) => setState(() => _selectedIndex = 0));
-          } else if (index == 3) {
-            // Soil Tab
-            double lat = 0.0;
-            double lon = 0.0;
-            try {
-              final device = _devices.firstWhere(
-                (d) => d['d_id'].toString() == selectedDeviceId,
-                orElse: () => <String, dynamic>{},
-              );
-              if (device.isNotEmpty) {
-                lat = double.tryParse(device['latitude']?.toString() ?? "0") ??
-                    0.0;
-                lon = double.tryParse(device['longitude']?.toString() ?? "0") ??
-                    0.0;
-              }
-            } catch (e) {
-              debugPrint("Error parsing lat/lon: $e");
+            // Protection / Dust Risk Tab
+            if (_selectedRole == "Cement") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => CementDustSpreadScreen(
+                          sessionCookie: widget.sessionCookie,
+                          deviceId: selectedDeviceId,
+                        )),
+              ).then((_) => setState(() => _selectedIndex = 0));
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => ProtectionScreen(
+                          sessionCookie: widget.sessionCookie,
+                          deviceId: selectedDeviceId,
+                        )),
+              ).then((_) => setState(() => _selectedIndex = 0));
             }
+          } else if (index == 3) {
+            // Soil / Emission Tab
+            if (_selectedRole == "Cement") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => CementEmissionScreen(
+                          sessionCookie: widget.sessionCookie,
+                          deviceId: selectedDeviceId,
+                          sensorData: sensorData,
+                        )),
+              ).then((_) => setState(() => _selectedIndex = 0));
+            } else {
+              double lat = 0.0;
+              double lon = 0.0;
+              try {
+                final device = _devices.firstWhere(
+                  (d) => d['d_id'].toString() == selectedDeviceId,
+                  orElse: () => <String, dynamic>{},
+                );
+                if (device.isNotEmpty) {
+                  lat =
+                      double.tryParse(device['latitude']?.toString() ?? "0") ??
+                          0.0;
+                  lon =
+                      double.tryParse(device['longitude']?.toString() ?? "0") ??
+                          0.0;
+                }
+              } catch (e) {
+                debugPrint("Error parsing lat/lon: $e");
+              }
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => SoilScreen(
-                        sessionCookie: widget.sessionCookie,
-                        deviceId: selectedDeviceId,
-                        sensorData: sensorData,
-                        latitude: lat,
-                        longitude: lon,
-                      )),
-            ).then((_) => setState(() => _selectedIndex = 0));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => SoilScreen(
+                          sessionCookie: widget.sessionCookie,
+                          deviceId: selectedDeviceId,
+                          sensorData: sensorData,
+                          latitude: lat,
+                          longitude: lon,
+                        )),
+              ).then((_) => setState(() => _selectedIndex = 0));
+            }
           } else if (index == 4) {
             // Alerts Tab
             Navigator.push(
@@ -459,10 +487,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   builder: (context) => AlertsScreen(
                         sessionCookie: widget.sessionCookie,
                         deviceId: selectedDeviceId,
-                        sensorData:
-                            sensorData, // Passing sensorData for context
-                        latitude:
-                            0.0, // Default or fetch real lat/lon if needed here
+                        sensorData: sensorData,
+                        latitude: 0.0,
                         longitude: 0.0,
                       )),
             ).then((_) => setState(() => _selectedIndex = 0));
@@ -475,14 +501,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         selectedLabelStyle:
             GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 12),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
-              icon: Icon(LucideIcons.shieldCheck), label: "Protection"),
-          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
+            icon: Icon(_selectedRole == "Cement"
+                ? LucideIcons.wind
+                : LucideIcons.shieldCheck),
+            label: _selectedRole == "Cement" ? "Dust Risk" : "Protection",
+          ),
+          const BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
           BottomNavigationBarItem(
-              icon: Icon(LucideIcons.layers), label: "Soil"),
-          BottomNavigationBarItem(
+            icon: Icon(_selectedRole == "Cement"
+                ? LucideIcons.activity
+                : LucideIcons.layers),
+            label: _selectedRole == "Cement" ? "Emission" : "Soil",
+          ),
+          const BottomNavigationBarItem(
               icon: Icon(Icons.notifications_none), label: "Alerts"),
         ],
       ),
@@ -491,6 +525,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           children: [
             _buildCustomHeader(context),
+            _buildRoleSelector(),
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -823,6 +858,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _selectedRole,
+            dropdownColor: const Color(0xFF1E5631),
+            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+            isExpanded: true,
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            items: ["Agriculture", "Cement", "Chemical"].map((role) {
+              IconData icon;
+              switch (role) {
+                case "Cement":
+                  icon = LucideIcons.building;
+                  break;
+                case "Chemical":
+                  icon = LucideIcons.testTube;
+                  break;
+                default:
+                  icon = LucideIcons.sprout;
+              }
+              return DropdownMenuItem(
+                value: role,
+                child: Row(
+                  children: [
+                    Icon(icon, color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Text(role),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedRole = value);
+              }
+            },
+          ),
+        ),
       ),
     );
   }
