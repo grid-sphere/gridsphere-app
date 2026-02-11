@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ Added
 
 const Color brandGreen = Color(0xFF166534);
 
@@ -55,6 +56,12 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
     ),
   ];
 
+  /// ✅ Save Industry
+  Future<void> _saveIndustry() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_industry', selectedIndustry!);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,7 +73,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
             children: [
               const SizedBox(height: 20),
 
-              /// LOGO
               SizedBox(
                 height: 72,
                 width: 72,
@@ -76,10 +82,8 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                 ),
               ),
 
-
               const SizedBox(height: 20),
 
-              /// TITLE
               const Text(
                 "Select Your Industry",
                 style: TextStyle(
@@ -102,7 +106,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
 
               const SizedBox(height: 24),
 
-              /// LIST
               Expanded(
                 child: ListView.separated(
                   itemCount: industries.length,
@@ -135,7 +138,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                         ),
                         child: Row(
                           children: [
-                            /// ICON
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -153,7 +155,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
 
                             const SizedBox(width: 14),
 
-                            /// TEXT
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +179,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                               ),
                             ),
 
-                            /// CHECK
                             if (isSelected)
                               const Icon(
                                 Icons.check_circle,
@@ -194,17 +194,16 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
 
               const SizedBox(height: 12),
 
-              /// CONTINUE BUTTON
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
                   onPressed: selectedIndustry == null
                       ? null
-                      : () {
-                    // NO NAVIGATION YET
+                      : () async {
+                    await _saveIndustry(); // ✅ Save here
                     debugPrint(
-                        "Selected Industry: $selectedIndustry");
+                        "Selected Industry Saved: $selectedIndustry");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: selectedIndustry == null
@@ -237,7 +236,6 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
   }
 }
 
-/// MODEL
 class _IndustryItem {
   final String title;
   final String subtitle;

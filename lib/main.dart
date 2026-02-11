@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_ui_screen.dart';
 import 'screens/register_ui_screen.dart';
+import 'screens/password_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/dashboard_layout_screen.dart';
+import 'screens/alert_settings_screen.dart';
+
 
 
 
@@ -34,9 +39,13 @@ class GridSphereApp extends StatelessWidget {
           ),
         ),
       ),
-     // home: const SplashScreen(),
-      // home: const OnboardingUIScreen(),
-      home: const RegisterUIScreen(),
+      // home: const SplashScreen(),
+      //home: const OnboardingUIScreen(),
+      //home: const RegisterUIScreen(),
+      //home: const PasswordScreen(),
+      //home: const SettingsScreen(),
+      home: const DashboardLayoutScreen(),
+      //home: const AlertSettingsScreen(),
     );
   }
 }
