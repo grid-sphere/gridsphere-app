@@ -27,7 +27,7 @@ class SessionManager {
     return prefs.getString(keyDeviceId);
   }
 
-  // Save alert thresholds (stored as JSON string)
+  // Save alerts thresholds (stored as JSON string)
   static Future<void> saveAlertSettings(String settingsJson) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(keyAlertSettings, settingsJson);

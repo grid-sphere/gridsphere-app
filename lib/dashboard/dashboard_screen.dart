@@ -4,10 +4,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
-import 'profile_screen.dart';
-import 'chat_screen.dart';
+import '../profile/profile_screen.dart';
+import '../chat/chat_screen.dart';
 import 'generic_detail_screen.dart';
-import 'session_manager.dart';
+import '../session_manager/session_cookies.dart';
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 
 class GoogleFonts {

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'session_manager.dart';
+import '../session_manager/session_cookies.dart';
 
 class GoogleFonts {
   static TextStyle inter({

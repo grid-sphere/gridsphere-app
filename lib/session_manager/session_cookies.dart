@@ -44,13 +44,13 @@ class SessionManager {
   static const String _alertSettingsKey = 'alert_settings';
   static const String _selectedDeviceKey = 'selected_device_id';
 
-  // Save alert configurations (JSON string)
+  // Save alerts configurations (JSON string)
   static Future<void> saveAlertSettings(String settingsJson) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_alertSettingsKey, settingsJson);
   }
 
-  // Retrieve alert configurations
+  // Retrieve alerts configurations
   static Future<String?> getAlertSettings() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_alertSettingsKey);

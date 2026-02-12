@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
+import 'splash/splash_screen.dart';
 import 'services/background_service.dart'; // Import Background Service
 import 'services/notification_service.dart'; // Import Notification Service
 

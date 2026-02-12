@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import this
 import 'dart:async';
-import 'login_screen.dart';
-import 'dashboard_screen.dart';
-import 'session_manager.dart'; // Import SessionManager
+import '../auth/login_screen.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../session_manager/session_cookies.dart'; // Import SessionManager
 
 class GoogleFonts {
   static TextStyle inter(

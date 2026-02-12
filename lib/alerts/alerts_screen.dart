@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:convert';
-import 'chat_screen.dart';
-import 'session_manager.dart';
+import '../chat/chat_screen.dart';
+import '../services/session_manager.dart';
 import '../services/background_service.dart';
+import '../session_manager/session_cookies.dart';
 import '../services/notification_service.dart';
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 
@@ -116,14 +117,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (jsonStr != null) {
       try {
         Map<String, dynamic> saved = jsonDecode(jsonStr);
-        // Merge saved settings into local config
+        // Merge saved alerts into local config
         saved.forEach((key, value) {
           if (_alertConfigs.containsKey(key)) {
             _alertConfigs[key] = value;
           }
         });
       } catch (e) {
-        debugPrint("Error loading alert settings: $e");
+        debugPrint("Error loading alerts alerts: $e");
       }
     }
 
@@ -167,7 +168,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       }
     });
 
-    // Save settings
+    // Save alerts
     await SessionManager.saveAlertSettings(jsonEncode(_alertConfigs));
 
     // Ensure device ID is saved

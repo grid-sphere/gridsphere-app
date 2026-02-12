@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../screens/dashboard_screen.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../agriculture/protection_screen.dart';
 import '../agriculture/soil_screen.dart';
-import '../screens/alerts_screen.dart';
+import '../alerts/alerts_screen.dart';
 
 // Assuming you have a GoogleFonts class or helper somewhere, if not define it or import it.
 // Reusing your existing GoogleFonts helper for consistency.
