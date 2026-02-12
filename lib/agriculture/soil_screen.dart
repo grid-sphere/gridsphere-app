@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'chat_screen.dart';
+import '../screens/chat_screen.dart';
 import 'dart:math';
 import 'package:intl/intl.dart';
-import 'session_manager.dart'; // Import SessionManager
+import '../screens/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 
 class GoogleFonts {
