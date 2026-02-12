@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:convert';
 import 'chat_screen.dart';
-import 'session_manager.dart';
+import '../session_manager/session_manager.dart';
 import '../services/background_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar

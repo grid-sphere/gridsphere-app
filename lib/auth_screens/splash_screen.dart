@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import this
 import 'dart:async';
 import 'login_screen.dart';
-import 'dashboard_screen.dart';
-import 'session_manager.dart'; // Import SessionManager
+import '../screens/dashboard_screen.dart';
+import '../session_manager/session_manager.dart'; // Import SessionManager
 
 class GoogleFonts {
   static TextStyle inter(
@@ -54,6 +54,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (sessionCookie != null && sessionCookie.isNotEmpty) {
         // --- Set session in Singleton ---
         SessionManager().setSessionCookie(sessionCookie);
+        await SessionManager().loadRole();
 
         // Cookie found -> Go to Dashboard (no params needed now)
         Navigator.of(context).pushReplacement(

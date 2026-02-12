@@ -3,10 +3,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../screens/dashboard_screen.dart';
 import '../agriculture/protection_screen.dart';
 import '../agriculture/soil_screen.dart';
+import '../cement/cement_dust_spread_screen.dart';
+import '../cement/cement_emission_screen.dart';
+import '../chemical/chemical_dust_spread_screen.dart';
+import '../chemical/chemical_process_stability_screen.dart';
 import '../screens/alerts_screen.dart';
+import '../session_manager/session_manager.dart';
 
-// Assuming you have a GoogleFonts class or helper somewhere, if not define it or import it.
-// Reusing your existing GoogleFonts helper for consistency.
 class GoogleFontsHelper {
   static TextStyle inter({
     double? fontSize,
@@ -28,6 +31,8 @@ class CustomBottomNavBar extends StatelessWidget {
   final Map<String, dynamic>? sensorData;
   final double latitude;
   final double longitude;
+  final List<BottomNavigationBarItem>? items;
+  final void Function(int)? onItemTapped;
 
   const CustomBottomNavBar({
     super.key,
@@ -36,46 +41,121 @@ class CustomBottomNavBar extends StatelessWidget {
     this.sensorData,
     this.latitude = 0.0,
     this.longitude = 0.0,
+    this.items,
+    this.onItemTapped,
   });
 
-  void _onItemTapped(BuildContext context, int index) {
-    if (index == 2 || index == currentIndex) return; // 2 is the FAB placeholder
+  List<BottomNavigationBarItem> _getItemsForRole(String role) {
+    switch (role) {
+      case 'cement':
+        return const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.wind), label: "Dust Risk"),
+          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.activity), label: "Emission"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_none), label: "Alerts"),
+        ];
+      case 'chemical':
+        return const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.wind), label: "Pollution"),
+          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.gauge), label: "Stability"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_none), label: "Alerts"),
+        ];
+      default:
+        return const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.shieldCheck), label: "Protection"),
+          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.layers), label: "Soil"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_none), label: "Alerts"),
+        ];
+    }
+  }
 
-    // Helper to replace the current screen with a new one
-    // Using pushReplacement for smoother transitions between main tabs (optional, push is also fine)
-    // However, Dashboard is usually the root.
-    // To keep your existing stack logic:
+  void _onItemTapped(BuildContext context, int index) {
+    if (index == 2 || index == currentIndex) return;
+
+    final String role = SessionManager().role;
 
     if (index == 0) {
-      // Go to Dashboard (Root)
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
         (route) => false,
       );
     } else if (index == 1) {
-      // Go to Protection
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProtectionScreen(deviceId: deviceId),
-        ),
-      );
+      switch (role) {
+        case 'cement':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  CementDustSpreadScreen(deviceId: deviceId),
+            ),
+          );
+          break;
+        case 'chemical':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ChemicalDustSpreadScreen(deviceId: deviceId),
+            ),
+          );
+          break;
+        default:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProtectionScreen(deviceId: deviceId),
+            ),
+          );
+      }
     } else if (index == 3) {
-      // Go to Soil
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => SoilScreen(
-            deviceId: deviceId,
-            sensorData: sensorData,
-            latitude: latitude,
-            longitude: longitude,
-          ),
-        ),
-      );
+      switch (role) {
+        case 'cement':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  CementEmissionScreen(deviceId: deviceId),
+            ),
+          );
+          break;
+        case 'chemical':
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ChemicalProcessStabilityScreen(deviceId: deviceId),
+            ),
+          );
+          break;
+        default:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SoilScreen(
+                deviceId: deviceId,
+                sensorData: sensorData,
+                latitude: latitude,
+                longitude: longitude,
+              ),
+            ),
+          );
+      }
     } else if (index == 4) {
-      // Go to Alerts
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -92,6 +172,8 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String role = SessionManager().role;
+
     return BottomNavigationBar(
       currentIndex: currentIndex,
       type: BottomNavigationBarType.fixed,
@@ -101,17 +183,8 @@ class CustomBottomNavBar extends StatelessWidget {
       selectedLabelStyle:
           GoogleFontsHelper.inter(fontWeight: FontWeight.w600, fontSize: 12),
       unselectedLabelStyle: GoogleFontsHelper.inter(fontSize: 12),
-      onTap: (index) => _onItemTapped(context, index),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-        BottomNavigationBarItem(
-            icon: Icon(LucideIcons.shieldCheck), label: "Protection"),
-        BottomNavigationBarItem(
-            icon: SizedBox(height: 24), label: ""), // Space for FAB
-        BottomNavigationBarItem(icon: Icon(LucideIcons.layers), label: "Soil"),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none), label: "Alerts"),
-      ],
+      onTap: onItemTapped ?? (index) => _onItemTapped(context, index),
+      items: items ?? _getItemsForRole(role),
     );
   }
 }

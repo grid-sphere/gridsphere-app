@@ -5,7 +5,7 @@ import 'dart:convert';
 import '../screens/chat_screen.dart';
 import 'dart:math';
 import 'package:intl/intl.dart';
-import '../screens/session_manager.dart'; // Import SessionManager
+import '../session_manager/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 
 class GoogleFonts {

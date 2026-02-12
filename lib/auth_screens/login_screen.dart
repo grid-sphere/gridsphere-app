@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart'; // Import for saving session
-import 'dashboard_screen.dart';
-import 'session_manager.dart'; // Import SessionManager
+import '../screens/dashboard_screen.dart';
+import '../session_manager/session_manager.dart'; // Import SessionManager
 
 class GoogleFonts {
   static TextStyle inter({

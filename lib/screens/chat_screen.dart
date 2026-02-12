@@ -35,12 +35,12 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   late final List<Map<String, String>> _messages;
   String? _conversationId;
   bool _isLoading = false;
 
-  final String _apiUrl = "https://kesan.onrender.com/api/chat"; 
+  final String _apiUrl = "https://kesan.onrender.com/api/chat";
 
   final List<String> _sensorFeatures = [
     "Temperature",
@@ -58,8 +58,9 @@ class _ChatScreenState extends State<ChatScreen> {
     // A much friendlier, welcoming starting message
     _messages = [
       {
-        'from': 'ai', 
-        'text': "Namaste! 🙏 I'm your Kisan AI companion from Grid Sphere. 🌾\n\nI'm here to help you keep a close eye on your farm. I have your real-time data for Device ${widget.deviceId} ready! \n\nHow is your field doing today? Would you like me to check the soil health or recent rainfall for you?"
+        'from': 'ai',
+        'text':
+            "Namaste! 🙏 I'm your Kisan AI companion from Grid Sphere. 🌾\n\nI'm here to help you keep a close eye on your farm. I have your real-time data for Device ${widget.deviceId} ready! \n\nHow is your field doing today? Would you like me to check the soil health or recent rainfall for you?"
       }
     ];
   }
@@ -74,38 +75,43 @@ class _ChatScreenState extends State<ChatScreen> {
         _isLoading = true;
       });
     }
-    
+
     _controller.clear();
     _scrollToBottom();
 
     try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36", 
-        },
-        body: jsonEncode({
-          "message": textToSend,
-          "device_id": widget.deviceId.toString(),
-          "conversation_id": _conversationId, 
-        }),
-      ).timeout(const Duration(seconds: 60)); 
+      final response = await http
+          .post(
+            Uri.parse(_apiUrl),
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent":
+                  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+            },
+            body: jsonEncode({
+              "message": textToSend,
+              "device_id": widget.deviceId.toString(),
+              "conversation_id": _conversationId,
+            }),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          final aiResponse = data['response'] ?? "I've processed your data but couldn't generate a text response. Please try again.";
-          _conversationId = data['conversation_id']; 
+          final aiResponse = data['response'] ??
+              "I've processed your data but couldn't generate a text response. Please try again.";
+          _conversationId = data['conversation_id'];
           _messages.add({'from': 'ai', 'text': aiResponse});
         });
       } else {
         setState(() {
           _messages.add({
-            'from': 'ai', 
-            'text': "I'm having a little trouble connecting to the field experts right now. Please try again in a moment! 🚜"
+            'from': 'ai',
+            'text':
+                "I'm having a little trouble connecting to the field experts right now. Please try again in a moment! 🚜"
           });
         });
       }
@@ -113,8 +119,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() {
           _messages.add({
-            'from': 'ai', 
-            'text': "It seems I've lost my connection to the sensors. Let me check my signal and try again soon! 📡" 
+            'from': 'ai',
+            'text':
+                "It seems I've lost my connection to the sensors. Let me check my signal and try again soon! 📡"
           });
         });
       }
@@ -127,7 +134,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onFeatureTap(String feature) {
-    _sendMessage(customMessage: "Can you give me a summary of the $feature data?");
+    _sendMessage(
+        customMessage: "Can you give me a summary of the $feature data?");
   }
 
   void _scrollToBottom() {
@@ -169,7 +177,10 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Text(
                   "Kisan AI",
-                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18),
                 ),
                 Text(
                   "Smart Farm Assistant",
@@ -181,13 +192,15 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.rotateCcw, color: Colors.white, size: 20),
+            icon: const Icon(LucideIcons.rotateCcw,
+                color: Colors.white, size: 20),
             tooltip: "Clear Chat",
             onPressed: () {
               setState(() {
                 _messages.clear();
                 _conversationId = null;
-                _messages.add({'from': 'ai', 'text': 'How can I help you now?'});
+                _messages
+                    .add({'from': 'ai', 'text': 'How can I help you now?'});
               });
             },
           ),
@@ -199,35 +212,38 @@ class _ChatScreenState extends State<ChatScreen> {
           Positioned(
             bottom: 100,
             right: -50,
-            child: Icon(LucideIcons.leaf, size: 300, color: const Color(0xFF166534).withOpacity(0.03)),
+            child: Icon(LucideIcons.leaf,
+                size: 300, color: const Color(0xFF166534).withOpacity(0.03)),
           ),
           Positioned(
             top: 50,
             left: -30,
-            child: Icon(LucideIcons.sprout, size: 150, color: const Color(0xFF166534).withOpacity(0.03)),
+            child: Icon(LucideIcons.sprout,
+                size: 150, color: const Color(0xFF166534).withOpacity(0.03)),
           ),
-          
+
           Column(
             children: [
               // Chat History
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   itemCount: _messages.length + (_isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == _messages.length) {
                       return _buildLoadingBubble();
                     }
-                    
+
                     final msg = _messages[index];
                     final isUser = msg['from'] == 'user';
-                    
+
                     return _buildMessageBubble(msg['text']!, isUser);
                   },
                 ),
               ),
-              
+
               // Quick Actions
               _buildQuickActions(),
 
@@ -244,21 +260,25 @@ class _ChatScreenState extends State<ChatScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Bot icon container removed to simplify the chat box UI
           Flexible(
             child: Container(
               padding: const EdgeInsets.all(14),
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75),
               decoration: BoxDecoration(
                 color: isUser ? const Color(0xFF166534) : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
-                  bottomLeft: isUser ? const Radius.circular(20) : Radius.circular(4),
-                  bottomRight: isUser ? Radius.circular(4) : const Radius.circular(20),
+                  bottomLeft:
+                      isUser ? const Radius.circular(20) : Radius.circular(4),
+                  bottomRight:
+                      isUser ? Radius.circular(4) : const Radius.circular(20),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -307,7 +327,8 @@ class _ChatScreenState extends State<ChatScreen> {
               elevation: 0,
               pressElevation: 0,
               side: const BorderSide(color: Color(0xFFCBD5E1)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
               onPressed: () => _onFeatureTap(_sensorFeatures[index]),
             ),
           );
@@ -318,7 +339,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -346,7 +368,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   hintText: "Type your farm query...",
                   hintStyle: GoogleFonts.inter(color: Colors.grey[500]),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
@@ -370,11 +393,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                 ],
               ),
-              child: Icon(
-                _isLoading ? LucideIcons.loader2 : LucideIcons.send, 
-                color: Colors.white, 
-                size: 20
-              ),
+              child: Icon(_isLoading ? LucideIcons.loader2 : LucideIcons.send,
+                  color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -394,21 +414,25 @@ class _ChatScreenState extends State<ChatScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2)),
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2)),
               ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(
-                  width: 12, 
-                  height: 12, 
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF166534))
-                ),
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Color(0xFF166534))),
                 const SizedBox(width: 12),
                 Text(
                   "Analyzing field data...",
-                  style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
+                  style:
+                      GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
                 ),
               ],
             ),
