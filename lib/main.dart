@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../auth_screens/splash_screen.dart';
 import 'services/background_service.dart'; // Import Background Service
 import 'services/notification_service.dart'; // Import Notification Service
+import 'auth_screens/sector_selection_screen.dart';
 
 void main() async {
   // 1. Ensure Flutter bindings are initialized
