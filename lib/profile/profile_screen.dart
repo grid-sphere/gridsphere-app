@@ -3,7 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart'; // Import for session management
 import 'dart:convert';
-import 'login_screen.dart'; 
+import '../auth/login_screen.dart';
 
 // Fallback GoogleFonts class
 class GoogleFonts {
