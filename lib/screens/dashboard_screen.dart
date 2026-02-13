@@ -4,10 +4,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
-import 'profile_screen.dart';
+import '../auth_screens/profile_screen.dart';
 import 'chat_screen.dart';
 import 'generic_detail_screen.dart';
-import 'session_manager.dart';
+import '../session_manager/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 
 class GoogleFonts {
@@ -773,7 +773,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   builder: (context) => ProfileScreen(
                       sessionCookie: SessionManager().sessionCookie),
                 ),
-              );
+              ).then((_) {
+                if (mounted) setState(() {});
+              });
             },
             child: Container(
               width: 40,
@@ -904,13 +906,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             customContent: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Leaf Wetness",
-                    style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF374151))),
-                const SizedBox(height: 4),
                 Row(
                   children: [
                     FittedBox(

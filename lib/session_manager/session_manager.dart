@@ -16,11 +16,13 @@ class SessionManager {
   // New properties for location
   double _latitude = 0.0;
   double _longitude = 0.0;
+  String _role = "agriculture";
 
   // Getters
   String get sessionCookie => _sessionCookie;
   double get latitude => _latitude;
   double get longitude => _longitude;
+  String get role => _role;
 
   // Setters
   void setSessionCookie(String cookie) {
@@ -32,11 +34,31 @@ class SessionManager {
     _longitude = lon;
   }
 
+  void setRole(String role) {
+    _role = role;
+  }
+
+  // Save role to SharedPreferences
+  static const String _roleKey = 'user_role';
+
+  Future<void> saveRole(String role) async {
+    _role = role;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_roleKey, role);
+  }
+
+  // Load role from SharedPreferences
+  Future<void> loadRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    _role = prefs.getString(_roleKey) ?? "agriculture";
+  }
+
   // Clear session (e.g., on logout)
   void clearSession() {
     _sessionCookie = "";
     _latitude = 0.0;
     _longitude = 0.0;
+    _role = "agriculture";
   }
 
   // --- Alert Settings Management ---
