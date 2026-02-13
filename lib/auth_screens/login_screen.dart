@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; // Import for saving session
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/dashboard_screen.dart';
-import '../session_manager/session_manager.dart'; // Import SessionManager
+import 'register_ui_screen.dart'; // Import Register Screen
+import '../session_manager/session_manager.dart'; // Ensure SessionManager is imported
 
 class GoogleFonts {
   static TextStyle inter({
@@ -37,24 +38,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   final String _baseUrl = "https://gridsphere.in/station/api";
-
-  // --- CONSTANT: User Agent ---
-  // Critical: Must match the one used in DashboardScreen exactly to keep session alive.
   final String _userAgent = "FlutterApp";
-
-  // --- COOKIE JAR ---
-  // Store cookies in a map to automatically handle deduplication
   final Map<String, String> _cookieJar = {};
 
-  // --- ROBUST PARSER ---
-  // Extracts "key=value" pairs and ignores attributes like 'path', 'expires', etc.
   void _updateCookieJar(String? rawCookies) {
     if (rawCookies == null || rawCookies.isEmpty) return;
-
-    // Regex to find "Key=Value" patterns.
     final regex = RegExp(r'([a-zA-Z0-9_-]+)=([^;]+)');
     final matches = regex.allMatches(rawCookies);
-
     final Set<String> ignoreKeys = {
       'expires',
       'max-age',
@@ -64,18 +54,15 @@ class _LoginScreenState extends State<LoginScreen> {
       'httponly',
       'samesite'
     };
-
     for (final match in matches) {
       String key = match.group(1)?.trim() ?? "";
       String value = match.group(2)?.trim() ?? "";
-
       if (key.isNotEmpty && !ignoreKeys.contains(key.toLowerCase())) {
         _cookieJar[key] = value;
       }
     }
   }
 
-  // Helper to convert the Map back into a header string
   String _getCookieHeader() {
     return _cookieJar.entries.map((e) => "${e.key}=${e.value}").join("; ");
   }
@@ -87,11 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = true);
 
       try {
-        // --- STEP 1: Get CSRF Token ---
         final csrfUrl = Uri.parse('$_baseUrl/getCSRF');
         final csrfResponse = await http.get(
           csrfUrl,
-          // FIX: Send User-Agent here so the session is bound to it immediately
           headers: {'User-Agent': _userAgent},
         );
 
@@ -100,24 +85,21 @@ class _LoginScreenState extends State<LoginScreen> {
           final String csrfName = csrfData['csrf_name'];
           final String csrfValue = csrfData['csrf_token'];
 
-          // 1. Update Cookie Jar with CSRF cookies
           _updateCookieJar(csrfResponse.headers['set-cookie']);
 
           if (_cookieJar.isNotEmpty) {
-            // --- STEP 2: Perform Login ---
             final loginUrl = Uri.parse('$_baseUrl/login');
 
             final loginResponse = await http.post(
               loginUrl,
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Cookie": _getCookieHeader(), // Send clean cookies
-                "User-Agent": _userAgent, // Send matching User-Agent
+                "Cookie": _getCookieHeader(),
+                "User-Agent": _userAgent,
               },
               body: {
                 "username": _idController.text.trim(),
-                "password":
-                    _passwordController.text.trim(), // Added trim for safety
+                "password": _passwordController.text.trim(),
                 csrfName: csrfValue,
               },
             );
@@ -128,27 +110,21 @@ class _LoginScreenState extends State<LoginScreen> {
               if (loginData['status'] == true ||
                   loginData['status'] == 'success') {
                 if (mounted) {
-                  // 2. Update Cookie Jar with Session Rotation cookies from Login
                   _updateCookieJar(loginResponse.headers['set-cookie']);
-
                   final String finalCookies = _getCookieHeader();
                   debugPrint("✅ Login Success! Clean Cookies: $finalCookies");
 
-                  // --- SAVE SESSION PERSISTENTLY ---
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('session_cookie', finalCookies);
 
-                  // --- SET SESSION IN MANAGER ---
+                  // Initialize SessionManager
                   SessionManager().setSessionCookie(finalCookies);
 
-                  // --- STEP 3: Fetch Initial Device for Location ---
-                  // We need to fetch devices here to get the lat/lon for the session
-                  await _fetchAndStoreInitialLocation();
-
+                  // Fetch initial location logic implies dashboard load
+                  // For now direct navigation:
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          const DashboardScreen(), // No longer need to pass cookie
+                      builder: (context) => const DashboardScreen(),
                     ),
                   );
                 }
@@ -172,49 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
           setState(() => _isLoading = false);
         }
       }
-    }
-  }
-
-  // New helper to fetch device info immediately after login to populate SessionManager location
-  Future<void> _fetchAndStoreInitialLocation() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/getDevices'),
-        headers: {
-          'Cookie': SessionManager().sessionCookie,
-          'User-Agent': _userAgent,
-          'Accept': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final dynamic data = jsonDecode(response.body);
-        List<dynamic> deviceList = [];
-
-        if (data is List) {
-          deviceList = data;
-        } else if (data is Map) {
-          if (data['data'] is List) {
-            deviceList = data['data'];
-          } else if (data['devices'] is List) {
-            deviceList = data['devices'];
-          }
-        }
-
-        if (deviceList.isNotEmpty) {
-          final device = deviceList[0];
-          double lat =
-              double.tryParse(device['latitude']?.toString() ?? "0.0") ?? 0.0;
-          double lon =
-              double.tryParse(device['longitude']?.toString() ?? "0.0") ?? 0.0;
-
-          // Store in SessionManager
-          SessionManager().setLocation(lat, lon);
-          debugPrint("📍 Initial Location Stored: $lat, $lon");
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching initial location: $e");
     }
   }
 
@@ -387,6 +320,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold)),
                             ),
+                          ),
+
+                          // --- UPDATED: Registration Link ---
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Don't have an account? ",
+                                style: GoogleFonts.inter(
+                                    color: Colors.grey[600], fontSize: 14),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterUIScreen()),
+                                  );
+                                },
+                                child: Text(
+                                  "Register",
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF166534),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
