@@ -6,6 +6,7 @@ import 'dart:math';
 import '../screens/chat_screen.dart';
 import '../session_manager/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
+import '../widgets/home_back_button.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -411,10 +412,7 @@ class _ProtectionScreenState extends State<ProtectionScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF166534),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const HomeBackButton(),
         title: Text(
           "Field Protection",
           style: GoogleFonts.inter(

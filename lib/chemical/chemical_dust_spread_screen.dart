@@ -9,6 +9,7 @@ import '../screens/dashboard_screen.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
 import '../session_manager/session_manager.dart';
 import 'chemical_process_stability_screen.dart';
+import '../widgets/home_back_button.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -233,10 +234,7 @@ class _ChemicalDustSpreadScreenState extends State<ChemicalDustSpreadScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF166534),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const HomeBackButton(),
         title: Text(
           "Pollution Spread Risk",
           style: GoogleFonts.inter(

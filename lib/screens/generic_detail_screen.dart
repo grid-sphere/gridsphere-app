@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../session_manager/session_manager.dart';
+import '../widgets/home_back_button.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -227,10 +228,7 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const HomeBackButton(),
         title: Text(
           widget.title,
           style: GoogleFonts.inter(

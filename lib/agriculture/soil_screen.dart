@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:intl/intl.dart';
 import '../session_manager/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
+import '../widgets/home_back_button.dart'; // Import HomeBackButton
 
 class GoogleFonts {
   static TextStyle inter({
@@ -202,10 +203,8 @@ class _SoilScreenState extends State<SoilScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF166534),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // Using the new HomeBackButton widget
+        leading: const HomeBackButton(),
         title: Text(
           "Soil Health",
           style: GoogleFonts.inter(

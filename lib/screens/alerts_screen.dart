@@ -5,7 +5,8 @@ import 'chat_screen.dart';
 import '../session_manager/session_manager.dart';
 import '../services/background_service.dart';
 import '../services/notification_service.dart';
-import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
+import '../widgets/custom_bottom_nav_bar.dart';
+import '../widgets/home_back_button.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -221,11 +222,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios, color: Colors.black87, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const HomeBackButton(),
         actions: [
           // Debug Button
           IconButton(
