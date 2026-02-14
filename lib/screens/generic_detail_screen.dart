@@ -4,9 +4,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart' hide TextDirection;
-// Removed chat_screen.dart and alerts_screen.dart imports as we are not using the bottom nav here anymore or can pass navigation callbacks if needed.
-// Keeping them if you want to keep the bottom nav on this screen, but usually detail screens push on top.
-// For now, I will keep the structure simple as a detail view.
+import '../session_manager/session_manager.dart';
+import '../widgets/home_back_button.dart';
+import '../widgets/home_pop_scope.dart'; // Import HomePopScope
 
 class GoogleFonts {
   static TextStyle inter({
@@ -40,7 +40,6 @@ class GenericDetailScreen extends StatefulWidget {
   final IconData icon;
   final Color themeColor;
   final String deviceId;
-  final String sessionCookie;
   final Map<String, dynamic>?
       currentData; // Optional: Pass current data to show immediately
 
@@ -52,7 +51,6 @@ class GenericDetailScreen extends StatefulWidget {
     required this.icon,
     required this.themeColor,
     required this.deviceId,
-    required this.sessionCookie,
     this.currentData,
   });
 
@@ -92,7 +90,7 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
       final response = await http.get(
         url,
         headers: {
-          'Cookie': widget.sessionCookie,
+          'Cookie': SessionManager().sessionCookie, // Use SessionManager
           'User-Agent': 'FlutterApp',
           'Accept': 'application/json',
         },
@@ -114,20 +112,20 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
           List<GraphPoint> points = [];
 
           for (var r in readings) {
-            // Dynamic parsing based on the key passed
             var rawVal = r[widget.sensorKey];
 
             // Handle different key names in history API if they differ from sensorKey
-            // (You might need a mapper here if API keys are vastly different)
             if (rawVal == null) {
-              // Fallback mappings if needed, e.g. 'air_temp' vs 'temp'
               if (widget.sensorKey == 'air_temp')
                 rawVal = r['temp'];
               else if (widget.sensorKey == 'soil_moisture')
                 rawVal = r['surface_humidity'];
               else if (widget.sensorKey == 'soil_temp')
                 rawVal = r['depth_temp'];
-              else if (widget.sensorKey == 'wind') rawVal = r['wind_speed'];
+              else if (widget.sensorKey == 'wind')
+                rawVal = r['wind_speed'];
+              else if (widget.sensorKey == 'wind_speed')
+                rawVal = r['wind_speed']; // Safety for wind_speed key
             }
 
             double val = double.tryParse(rawVal.toString()) ?? 0.0;
@@ -183,7 +181,6 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
       } else {
         time = endDate.subtract(Duration(days: i));
       }
-      // Simple mock logic
       double base = 20.0 + random.nextDouble() * 10;
 
       mockPoints.add(GraphPoint(time: time, value: base));
@@ -199,7 +196,6 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Current Value Logic
     double currentVal = 0.0;
     if (widget.currentData != null &&
         widget.currentData!.containsKey(widget.sensorKey)) {
@@ -223,151 +219,139 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
           .reduce((curr, next) => curr.value < next.value ? curr : next);
       minVal = minPoint.value;
       minTime = DateFormat('dd/MM hh:mm a').format(minPoint.time);
-
-      if (_selectedRange != '24h') {
-        // Optionally update currentVal from history if viewing trend
-        // currentVal = _graphData.last.value;
-      }
     } else {
       maxVal = currentVal;
       minVal = currentVal;
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    // --- UPDATED: Use HomePopScope Wrapper ---
+    return HomePopScope(
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.title,
-          style: GoogleFonts.inter(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: const HomeBackButton(),
+          title: Text(
+            widget.title,
+            style: GoogleFonts.inter(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Removed AI Insight Card as requested
-
-            // Time Filter Tabs
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    _buildTab("Day", "24h"),
+                    _buildTab("Week", "7d"),
+                    _buildTab("Month", "30d"),
+                  ],
+                ),
               ),
-              child: Row(
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  _buildTab("Day", "24h"),
-                  _buildTab("Week", "7d"),
-                  _buildTab("Month", "30d"),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Main Stats
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatBox(
-                    "Max",
-                    "${maxVal.toStringAsFixed(1)}${widget.unit}",
-                    Icons.arrow_upward,
-                    Colors.red,
-                    maxTime,
+                  Expanded(
+                    child: _buildStatBox(
+                      "Max",
+                      "${maxVal.toStringAsFixed(1)}${widget.unit}",
+                      Icons.arrow_upward,
+                      Colors.red,
+                      maxTime,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatBox(
-                    "Min",
-                    "${minVal.toStringAsFixed(1)}${widget.unit}",
-                    Icons.arrow_downward,
-                    Colors.blue,
-                    minTime,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Chart Section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatBox(
+                      "Min",
+                      "${minVal.toStringAsFixed(1)}${widget.unit}",
+                      Icons.arrow_downward,
+                      Colors.blue,
+                      minTime,
+                    ),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: widget.themeColor.withOpacity(0.1),
-                          shape: BoxShape.circle,
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: widget.themeColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(widget.icon,
+                              color: widget.themeColor, size: 20),
                         ),
-                        child: Icon(widget.icon,
-                            color: widget.themeColor, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        "${widget.title} Trend",
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                        const SizedBox(width: 10),
+                        Text(
+                          "${widget.title} Trend",
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 250,
-                    width: double.infinity,
-                    child: _isLoading
-                        ? Center(
-                            child: CircularProgressIndicator(
-                                color: widget.themeColor))
-                        : _errorMessage.isNotEmpty
-                            ? Center(
-                                child: Text(_errorMessage,
-                                    style: const TextStyle(color: Colors.red)))
-                            : CustomPaint(
-                                painter: _DetailedChartPainter(
-                                  dataPoints: _graphData,
-                                  color: widget.themeColor,
-                                  range: _selectedRange,
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 250,
+                      width: double.infinity,
+                      child: _isLoading
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                  color: widget.themeColor))
+                          : _errorMessage.isNotEmpty
+                              ? Center(
+                                  child: Text(_errorMessage,
+                                      style:
+                                          const TextStyle(color: Colors.red)))
+                              : CustomPaint(
+                                  painter: _DetailedChartPainter(
+                                    dataPoints: _graphData,
+                                    color: widget.themeColor,
+                                    range: _selectedRange,
+                                  ),
                                 ),
-                              ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -375,7 +359,6 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
 
   Widget _buildTab(String text, String rangeKey) {
     final isSelected = _selectedRange == rangeKey;
-    // Use theme color for selection or a standard green if you prefer uniformity
     final activeColor = widget.themeColor;
 
     return Expanded(
@@ -428,7 +411,7 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
                 child: Text(
                   value,
                   style: GoogleFonts.inter(
-                    fontSize: 20, // Slightly smaller to fit units
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1F2937),
                   ),

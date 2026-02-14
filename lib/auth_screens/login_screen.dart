@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; // Import for saving session
-import 'dashboard_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../screens/dashboard_screen.dart';
+import 'register_ui_screen.dart'; // Import Register Screen
+import '../session_manager/session_manager.dart'; // Ensure SessionManager is imported
 
 class GoogleFonts {
   static TextStyle inter({
@@ -36,39 +38,31 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   final String _baseUrl = "https://gridsphere.in/station/api";
-  
-  // --- CONSTANT: User Agent ---
-  // Critical: Must match the one used in DashboardScreen exactly to keep session alive.
   final String _userAgent = "FlutterApp";
-
-  // --- COOKIE JAR ---
-  // Store cookies in a map to automatically handle deduplication
   final Map<String, String> _cookieJar = {};
 
-  // --- ROBUST PARSER ---
-  // Extracts "key=value" pairs and ignores attributes like 'path', 'expires', etc.
   void _updateCookieJar(String? rawCookies) {
     if (rawCookies == null || rawCookies.isEmpty) return;
-
-    // Regex to find "Key=Value" patterns. 
     final regex = RegExp(r'([a-zA-Z0-9_-]+)=([^;]+)');
     final matches = regex.allMatches(rawCookies);
-
     final Set<String> ignoreKeys = {
-      'expires', 'max-age', 'path', 'domain', 'secure', 'httponly', 'samesite'
+      'expires',
+      'max-age',
+      'path',
+      'domain',
+      'secure',
+      'httponly',
+      'samesite'
     };
-
     for (final match in matches) {
       String key = match.group(1)?.trim() ?? "";
       String value = match.group(2)?.trim() ?? "";
-
       if (key.isNotEmpty && !ignoreKeys.contains(key.toLowerCase())) {
         _cookieJar[key] = value;
       }
     }
   }
 
-  // Helper to convert the Map back into a header string
   String _getCookieHeader() {
     return _cookieJar.entries.map((e) => "${e.key}=${e.value}").join("; ");
   }
@@ -80,58 +74,57 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = true);
 
       try {
-        // --- STEP 1: Get CSRF Token ---
         final csrfUrl = Uri.parse('$_baseUrl/getCSRF');
         final csrfResponse = await http.get(
           csrfUrl,
-          // FIX: Send User-Agent here so the session is bound to it immediately
-          headers: {'User-Agent': _userAgent}, 
+          headers: {'User-Agent': _userAgent},
         );
 
         if (csrfResponse.statusCode == 200) {
           final csrfData = jsonDecode(csrfResponse.body);
           final String csrfName = csrfData['csrf_name'];
           final String csrfValue = csrfData['csrf_token'];
-          
-          // 1. Update Cookie Jar with CSRF cookies
+
           _updateCookieJar(csrfResponse.headers['set-cookie']);
 
           if (_cookieJar.isNotEmpty) {
-            // --- STEP 2: Perform Login ---
             final loginUrl = Uri.parse('$_baseUrl/login');
-            
+
             final loginResponse = await http.post(
               loginUrl,
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Cookie": _getCookieHeader(), // Send clean cookies
-                "User-Agent": _userAgent,     // Send matching User-Agent
+                "Cookie": _getCookieHeader(),
+                "User-Agent": _userAgent,
               },
               body: {
                 "username": _idController.text.trim(),
-                "password": _passwordController.text.trim(), // Added trim for safety
-                csrfName: csrfValue, 
+                "password": _passwordController.text.trim(),
+                csrfName: csrfValue,
               },
             );
 
             if (loginResponse.statusCode == 200) {
               final loginData = jsonDecode(loginResponse.body);
-              
-              if (loginData['status'] == true || loginData['status'] == 'success') {
+
+              if (loginData['status'] == true ||
+                  loginData['status'] == 'success') {
                 if (mounted) {
-                  // 2. Update Cookie Jar with Session Rotation cookies from Login
                   _updateCookieJar(loginResponse.headers['set-cookie']);
-                  
                   final String finalCookies = _getCookieHeader();
                   debugPrint("✅ Login Success! Clean Cookies: $finalCookies");
 
-                  // --- SAVE SESSION PERSISTENTLY ---
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('session_cookie', finalCookies);
 
+                  // Initialize SessionManager
+                  SessionManager().setSessionCookie(finalCookies);
+
+                  // Fetch initial location logic implies dashboard load
+                  // For now direct navigation:
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => DashboardScreen(sessionCookie: finalCookies),
+                      builder: (context) => const DashboardScreen(),
                     ),
                   );
                 }
@@ -139,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 _showError(loginData['message'] ?? 'Login failed');
               }
             } else {
-               _showError('Login Error: ${loginResponse.statusCode}');
+              _showError('Login Error: ${loginResponse.statusCode}');
             }
           } else {
             _showError('Session initialization failed (No Cookie)');
@@ -194,8 +187,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       'assets/logo.png',
                       width: 60,
                       height: 60,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.public, size: 60, color: Colors.white),
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.public,
+                          size: 60,
+                          color: Colors.white),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -250,11 +245,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: InputDecoration(
                               labelText: "User ID",
                               prefixIcon: const Icon(Icons.person),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF166534), width: 2)),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF166534), width: 2)),
                             ),
-                            validator: (value) => value!.isEmpty ? "Please enter your User ID" : null,
+                            validator: (value) => value!.isEmpty
+                                ? "Please enter your User ID"
+                                : null,
                           ),
                           const SizedBox(height: 20),
                           TextFormField(
@@ -267,14 +271,31 @@ class _LoginScreenState extends State<LoginScreen> {
                               labelText: "Password",
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
-                                icon: Icon(_obscurePassword ? Icons.remove_red_eye : Icons.remove_red_eye_outlined, color: Colors.grey),
-                                onPressed: () { setState(() { _obscurePassword = !_obscurePassword; }); },
+                                icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.remove_red_eye
+                                        : Icons.remove_red_eye_outlined,
+                                    color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF166534), width: 2)),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF166534), width: 2)),
                             ),
-                            validator: (value) => value!.isEmpty ? "Please enter your password" : null,
+                            validator: (value) => value!.isEmpty
+                                ? "Please enter your password"
+                                : null,
                           ),
                           const SizedBox(height: 30),
                           SizedBox(
@@ -284,13 +305,52 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF166534),
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                                 elevation: 2,
                               ),
                               child: _isLoading
-                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text("Sign In", style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
+                                  : Text("Sign In",
+                                      style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
                             ),
+                          ),
+
+                          // --- UPDATED: Registration Link ---
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Don't have an account? ",
+                                style: GoogleFonts.inter(
+                                    color: Colors.grey[600], fontSize: 14),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const RegisterUIScreen()),
+                                  );
+                                },
+                                child: Text(
+                                  "Register",
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF166534),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
