@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart'; // Needed for direct prefs if used, but we use SessionManager
-import '../services/session_manager.dart';
+import '../session_manager/session_manager.dart';
 import '../services/background_service.dart';
 import '../services/notification_service.dart'; // Import Notification Service
 import 'dashboard_screen.dart';
