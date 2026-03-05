@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'password_screen.dart'; // Import navigation target
+import 'package:email_otp/email_otp.dart'; // Import the email_otp package
+import 'password_screen.dart';
 
 class GoogleFonts {
   static TextStyle inter({
@@ -32,7 +33,7 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
   final _emailController = TextEditingController();
   final _otpController = TextEditingController();
 
-  bool _emailVerified = false;
+  bool _emailSubmitted = false;
   bool _showOtp = false;
   bool _loading = false;
 
@@ -52,29 +53,122 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
       parent: _otpAnimController,
       curve: Curves.easeOut,
     );
+
+    // Initialize EmailOTP Configuration
+    EmailOTP.config(
+      appName: 'Grid Sphere',
+      otpType: OTPType.numeric,
+      emailTheme: EmailTheme.v1,
+    );
+
+    // Configure SMTP settings for custom email sending
+    EmailOTP.setSMTP(
+      host: 'smtp.gmail.com',
+      emailPort: EmailPort.port587,
+      secureType: SecureType.tls,
+      username: 'gridsphere75@gmail.com',
+      password: 'jzey btdb xxzc gvgi',
+    );
   }
 
   @override
   void dispose() {
     _otpAnimController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
-  void _onVerifyEmail() {
+  Future<void> _onVerifyEmail() async {
     FocusScope.of(context).unfocus();
 
     if (_formKey.currentState!.validate()) {
       setState(() => _loading = true);
 
-      Future.delayed(const Duration(seconds: 1), () {
+      try {
+        // Send OTP using the library
+        bool success =
+            await EmailOTP.sendOTP(email: _emailController.text.trim());
+
         if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _emailVerified = true;
-          _showOtp = true;
-        });
-        _otpAnimController.forward();
-      });
+
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("OTP has been sent to your email!"),
+              backgroundColor: primaryGreen,
+            ),
+          );
+
+          setState(() {
+            _loading = false;
+            _emailSubmitted = true;
+            _showOtp = true;
+          });
+          _otpAnimController.forward();
+        } else {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  "Failed to send OTP. Please check your email and try again."),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${e.toString()}"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _onVerifyOTPAndContinue() {
+    FocusScope.of(context).unfocus();
+
+    if (_otpController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter the OTP sent to your email"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Verify the entered OTP
+    bool isValid = EmailOTP.verifyOTP(otp: _otpController.text.trim());
+
+    if (isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email successfully verified!"),
+          backgroundColor: primaryGreen,
+        ),
+      );
+
+      // Navigate to the next screen on success
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const PasswordScreen(),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid OTP! Please check and try again."),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -84,7 +178,6 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: primaryGreen,
-        // Added Back Button logic
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -93,7 +186,6 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        // Extend body behind app bar to keep green background uniform
         extendBodyBehindAppBar: true,
         body: SafeArea(
           child: Center(
@@ -166,16 +258,16 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
                           // Email field
                           TextFormField(
                             controller: _emailController,
-                            readOnly: _emailVerified,
+                            readOnly: _emailSubmitted,
                             decoration: InputDecoration(
                               labelText: "Email",
                               labelStyle: TextStyle(
-                                color: _emailVerified
+                                color: _emailSubmitted
                                     ? primaryGreen
                                     : Colors.grey.shade700,
                               ),
                               prefixIcon: const Icon(Icons.email),
-                              suffixIcon: _emailVerified
+                              suffixIcon: _emailSubmitted
                                   ? const Icon(Icons.check_circle,
                                       color: primaryGreen)
                                   : null,
@@ -190,7 +282,16 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
                                     color: primaryGreen, width: 2),
                               ),
                             ),
-                            validator: (v) => v!.isEmpty ? "Enter email" : null,
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return "Enter email";
+                              }
+                              // Basic email validation regex
+                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                                return 'Enter a valid email';
+                              }
+                              return null;
+                            },
                           ),
 
                           const SizedBox(height: 16),
@@ -219,7 +320,7 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
                                         ),
                                       )
                                     : Text(
-                                        "Verify Email",
+                                        "Send OTP",
                                         style: GoogleFonts.inter(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -260,16 +361,7 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
                                   height: 50,
                                   width: double.infinity,
                                   child: ElevatedButton(
-                                    // --- UPDATED: Navigate to Password Screen ---
-                                    onPressed: () {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const PasswordScreen(),
-                                        ),
-                                      );
-                                    },
+                                    onPressed: _onVerifyOTPAndContinue,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: primaryGreen,
                                       foregroundColor: Colors.white,
@@ -278,7 +370,7 @@ class _RegisterUIScreenState extends State<RegisterUIScreen>
                                       ),
                                     ),
                                     child: Text(
-                                      "Continue",
+                                      "Verify & Continue",
                                       style: GoogleFonts.inter(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

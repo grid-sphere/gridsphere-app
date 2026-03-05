@@ -231,7 +231,8 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          leading: const HomeBackButton(),
+          // Passing explicitly black87 color so it's visible on the white AppBar
+          leading: const HomeBackButton(color: Colors.black87),
           title: Text(
             widget.title,
             style: GoogleFonts.inter(
@@ -267,7 +268,8 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
                   Expanded(
                     child: _buildStatBox(
                       "Max",
-                      "${maxVal.toStringAsFixed(1)}${widget.unit}",
+                      // Updated to 2 decimal places
+                      "${maxVal.toStringAsFixed(2)}${widget.unit}",
                       Icons.arrow_upward,
                       Colors.red,
                       maxTime,
@@ -277,7 +279,8 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
                   Expanded(
                     child: _buildStatBox(
                       "Min",
-                      "${minVal.toStringAsFixed(1)}${widget.unit}",
+                      // Updated to 2 decimal places
+                      "${minVal.toStringAsFixed(2)}${widget.unit}",
                       Icons.arrow_downward,
                       Colors.blue,
                       minTime,
@@ -537,8 +540,9 @@ class _DetailedChartPainter extends CustomPainter {
       double value = minVal + (yRange * i / 4);
       double yPos = chartHeight - (chartHeight * i / 4);
 
+      // Updated to 2 decimal places for consistent axis labels
       final textSpan =
-          TextSpan(text: value.toStringAsFixed(1), style: textStyle);
+          TextSpan(text: value.toStringAsFixed(2), style: textStyle);
       final textPainter =
           TextPainter(text: textSpan, textDirection: TextDirection.ltr);
       textPainter.layout();

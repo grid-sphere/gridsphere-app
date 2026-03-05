@@ -38,6 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic> userData = {};
   bool isLoading = true;
   String _selectedRole = SessionManager().role;
+  String? _activeDeviceId; // Added to hold the device ID for API calls
 
   final Map<String, String> _roleLabels = {
     'agriculture': 'Agriculture',
@@ -49,6 +50,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _fetchUserData();
+  }
+
+  String _mapValueToRole(int val) {
+    if (val == 1) return 'agriculture';
+    if (val == 2) return 'cement';
+    return 'chemical'; // 0 or others
+  }
+
+  int _mapRoleToValue(String role) {
+    if (role == 'agriculture') return 1;
+    if (role == 'cement') return 2;
+    return 0; // chemical/others
   }
 
   Future<void> _fetchUserData() async {
@@ -70,17 +83,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (sessionResponse.statusCode == 200) {
         final sessionData = jsonDecode(sessionResponse.body);
-        if (sessionData['user_id'] != null)
+        if (sessionData['user_id'] != null) {
           userId = sessionData['user_id'].toString();
+        }
         // Initial name from session if available
-        if (sessionData['username'] != null)
+        if (sessionData['username'] != null) {
           username = sessionData['username'].toString();
-        if (sessionData['email'] != null)
+        }
+        if (sessionData['email'] != null) {
           email = sessionData['email'].toString();
-        if (sessionData['phone'] != null)
+        }
+        if (sessionData['phone'] != null) {
           mobile = sessionData['phone'].toString();
-        else if (sessionData['mobile'] != null)
+        } else if (sessionData['mobile'] != null) {
           mobile = sessionData['mobile'].toString();
+        }
 
         List<String> addrParts = [];
         if (sessionData['city'] != null) addrParts.add(sessionData['city']);
@@ -95,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (userId == "Loading...") userId = "admin";
       }
 
-      // 2. Fetch Devices (Used for both Address and Farmer Name fallback)
+      // 2. Fetch Devices (Used for Address, Farmer Name fallback, and Device ID)
       final devicesResponse = await http.get(
         Uri.parse('$_baseUrl/getDevices'),
         headers: {
@@ -118,9 +135,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         deviceCount = deviceList.length;
-        // --- NEW LOGIC: Use device data for Farmer Name and Address ---
         if (deviceList.isNotEmpty) {
           var firstDevice = deviceList[0];
+
+          // Store device ID for the new Industry API
+          _activeDeviceId = firstDevice['d_id']?.toString();
+
           // Use 'farm_name' from the device API for the farmer's display name
           String farmNameFromApi = firstDevice['farm_name']?.toString() ?? "";
           if (farmNameFromApi.isNotEmpty) {
@@ -136,6 +156,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
+      // 3. Fetch the current Industry Type from the new backend API (integer mapping)
+      if (_activeDeviceId != null) {
+        try {
+          final industryResponse = await http.get(
+            Uri.parse('$_baseUrl/devices/$_activeDeviceId/industry'),
+            headers: {
+              'Cookie': widget.sessionCookie,
+              'User-Agent': 'FlutterApp',
+            },
+          );
+
+          if (industryResponse.statusCode == 200) {
+            final indData = jsonDecode(industryResponse.body);
+            if (indData['status'] == true && indData['data'] != null) {
+              int indValue = int.tryParse(
+                      indData['data']['industry_value']?.toString() ?? '1') ??
+                  1;
+              String fetchedRole = _mapValueToRole(indValue);
+
+              if (_roleLabels.containsKey(fetchedRole)) {
+                _selectedRole = fetchedRole;
+                SessionManager().setRole(fetchedRole);
+                SessionManager().setIndustryValue(indValue);
+                await SessionManager()
+                    .saveRole(fetchedRole, industryValue: indValue);
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("Error fetching industry type: $e");
+        }
+      }
+
       if (mounted) {
         setState(() {
           userData = {
@@ -144,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             "email": email,
             "mobile": mobile,
             "address": address,
-            "role": "Orchard Manager",
+            "role": "Manager",
             "devices": deviceCount,
           };
           isLoading = false;
@@ -160,12 +213,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
             "email": "--",
             "mobile": "--",
             "address": "Unknown",
-            "role": "Orchard Manager",
+            "role": "Manager",
             "devices": 0,
           };
           isLoading = false;
         });
       }
+    }
+  }
+
+  // --- POST Industry Type Update to Backend as Integer ---
+  Future<bool> _updateIndustryTypeOnBackend(String newRole) async {
+    if (_activeDeviceId == null) return false;
+
+    try {
+      // 1. Fetch CSRF token for secure POST
+      final csrfResponse = await http.get(
+        Uri.parse('$_baseUrl/getCSRF'),
+        headers: {'User-Agent': 'FlutterApp', 'Cookie': widget.sessionCookie},
+      );
+
+      String csrfName = '';
+      String csrfValue = '';
+      if (csrfResponse.statusCode == 200) {
+        final csrfData = jsonDecode(csrfResponse.body);
+        csrfName = csrfData['csrf_name'] ?? '';
+        csrfValue = csrfData['csrf_token'] ?? '';
+      }
+
+      int newMappedValue = _mapRoleToValue(newRole);
+
+      // 2. Prepare POST Body (Sending as strictly defined values (0, 1, 2))
+      Map<String, String> bodyData = {
+        'industry_type': newMappedValue.toString(),
+      };
+      if (csrfName.isNotEmpty && csrfValue.isNotEmpty) {
+        bodyData[csrfName] = csrfValue;
+      }
+
+      // 3. Make the POST request
+      final response = await http.post(
+        Uri.parse('$_baseUrl/devices/$_activeDeviceId/industry'),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Cookie": widget.sessionCookie,
+          "User-Agent": "FlutterApp",
+        },
+        body: bodyData,
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        debugPrint(
+            "Failed to update industry. Status: ${response.statusCode}, Body: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      debugPrint("Error updating industry type: $e");
+      return false;
     }
   }
 
@@ -195,11 +301,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('session_cookie');
+    SessionManager().clearSession();
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
+        (route) => false,
       );
     }
   }
@@ -227,132 +334,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : Column(
-        children: [
-          const SizedBox(height: 20),
-          // Profile Image Section
-          Center(
-            child: Column(
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD6C0B3), // Beige/Skin tone
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+                const SizedBox(height: 20),
+                // Profile Image Section
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD6C0B3), // Beige/Skin tone
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.person,
+                            size: 60, color: Color(0xFF5D4037)),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        userData["name"] ?? "User",
+                        style: GoogleFonts.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        "Grid Sphere Pvt. Ltd.",
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.person,
-                      size: 60, color: Color(0xFF5D4037)),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  userData["name"] ?? "User",
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  "Grid Sphere Pvt. Ltd.",
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white70,
+                const SizedBox(height: 40),
+
+                // Details Card
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1F5F9), // Light grey background
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(30)),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          _buildInfoTile("User Name",
+                              userData["name"] ?? "User", LucideIcons.user),
+                          const SizedBox(height: 16),
+                          _buildInfoTile("Email", userData["email"] ?? "--",
+                              LucideIcons.mail),
+                          const SizedBox(height: 16),
+                          _buildInfoTile("Mobile Number",
+                              userData["mobile"] ?? "--", LucideIcons.phone),
+                          const SizedBox(height: 16),
+                          _buildInfoTile("Address", userData["address"] ?? "--",
+                              LucideIcons.mapPin),
+                          const SizedBox(height: 16),
+                          _buildInfoTile("User ID", userData["id"] ?? "--",
+                              LucideIcons.badgeInfo),
+                          const SizedBox(height: 16),
+                          _buildInfoTile(
+                              "Active Devices",
+                              "${userData["devices"] ?? 0} Sensors",
+                              LucideIcons.radio),
+
+                          const SizedBox(height: 16),
+                          _buildRoleDropdown(), // Updated Dropdown Widget
+
+                          const SizedBox(height: 40),
+
+                          // Logout Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _handleLogout,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade50,
+                                foregroundColor: Colors.red.shade700,
+                                elevation: 0,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(color: Colors.red.shade100),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(LucideIcons.logOut, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Log Out",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 40),
-
-          // Details Card
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F5F9), // Light grey background
-                borderRadius:
-                BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    _buildInfoTile("Farmer Name",
-                        userData["name"] ?? "User", LucideIcons.user),
-                    const SizedBox(height: 16),
-                    _buildInfoTile("Email", userData["email"] ?? "--",
-                        LucideIcons.mail),
-                    const SizedBox(height: 16),
-                    _buildInfoTile("Mobile Number",
-                        userData["mobile"] ?? "--", LucideIcons.phone),
-                    const SizedBox(height: 16),
-                    _buildInfoTile("Address", userData["address"] ?? "--",
-                        LucideIcons.mapPin),
-                    const SizedBox(height: 16),
-                    _buildInfoTile("User ID", userData["id"] ?? "--",
-                        LucideIcons.badgeInfo),
-                    const SizedBox(height: 16),
-                    _buildInfoTile(
-                        "Active Devices",
-                        "${userData["devices"] ?? 0} Sensors",
-                        LucideIcons.radio),
-
-                    const SizedBox(height: 16),
-                    _buildRoleDropdown(), // Updated Dropdown Widget
-
-                    const SizedBox(height: 40),
-
-                    // Logout Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _handleLogout,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade50,
-                          foregroundColor: Colors.red.shade700,
-                          elevation: 0,
-                          padding:
-                          const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: Colors.red.shade100),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(LucideIcons.logOut, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              "Log Out",
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  // --- New Logic: Helper to map Role to Icon ---
+  // --- Helper to map Role to Icon ---
   IconData _getRoleIcon(String role) {
     switch (role) {
       case 'agriculture':
@@ -366,12 +473,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- New Logic: Show Beautiful Bottom Sheet ---
+  // --- Show Beautiful Bottom Sheet ---
   void _showIndustrySelector() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -407,11 +514,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
                   onTap: () async {
-                    setState(() {
-                      _selectedRole = entry.key;
-                    });
-                    await SessionManager().saveRole(entry.key);
-                    Navigator.pop(context);
+                    // Close the bottom sheet immediately using sheetContext
+                    Navigator.pop(sheetContext);
+
+                    // We can now safely use the main 'context' from State
+                    if (_activeDeviceId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("No device active to update industry."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Show loader in the background UI
+                    setState(() => isLoading = true);
+
+                    // Call backend API
+                    bool success =
+                        await _updateIndustryTypeOnBackend(entry.key);
+
+                    if (!mounted) return;
+
+                    if (success) {
+                      setState(() {
+                        _selectedRole = entry.key;
+                      });
+                      int intValue = _mapRoleToValue(entry.key);
+                      SessionManager().setIndustryValue(intValue);
+                      await SessionManager()
+                          .saveRole(entry.key, industryValue: intValue);
+
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Industry type updated successfully!"),
+                          backgroundColor: Color(0xFF166534),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Failed to update industry type."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+
+                    // Remove loader
+                    setState(() => isLoading = false);
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -477,7 +629,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- New Logic: Improved Trigger Widget ---
+  // --- Trigger Widget ---
   Widget _buildRoleDropdown() {
     return GestureDetector(
       onTap: _showIndustrySelector,

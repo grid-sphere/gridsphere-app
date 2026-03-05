@@ -17,12 +17,16 @@ class SessionManager {
   double _latitude = 0.0;
   double _longitude = 0.0;
   String _role = "agriculture";
+  int _industryValue = 1; // 1 = Agriculture, 2 = Cement, 0 = Others/Chemical
+  String _deviceId = ""; // Store device ID to use for API calls
 
   // Getters
   String get sessionCookie => _sessionCookie;
   double get latitude => _latitude;
   double get longitude => _longitude;
   String get role => _role;
+  int get industryValue => _industryValue;
+  String get deviceId => _deviceId;
 
   // Setters
   void setSessionCookie(String cookie) {
@@ -38,19 +42,31 @@ class SessionManager {
     _role = role;
   }
 
+  void setIndustryValue(int val) {
+    _industryValue = val;
+  }
+
+  void setDeviceId(String id) {
+    _deviceId = id;
+  }
+
   // Save role to SharedPreferences
   static const String _roleKey = 'user_role';
+  static const String _industryValKey = 'user_industry_val';
 
-  Future<void> saveRole(String role) async {
+  Future<void> saveRole(String role, {int industryValue = 1}) async {
     _role = role;
+    _industryValue = industryValue;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_roleKey, role);
+    await prefs.setInt(_industryValKey, industryValue);
   }
 
   // Load role from SharedPreferences
   Future<void> loadRole() async {
     final prefs = await SharedPreferences.getInstance();
     _role = prefs.getString(_roleKey) ?? "agriculture";
+    _industryValue = prefs.getInt(_industryValKey) ?? 1;
   }
 
   // Clear session (e.g., on logout)
@@ -59,6 +75,8 @@ class SessionManager {
     _latitude = 0.0;
     _longitude = 0.0;
     _role = "agriculture";
+    _industryValue = 1;
+    _deviceId = "";
   }
 
   // --- Alert Settings Management ---

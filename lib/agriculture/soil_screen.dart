@@ -422,14 +422,31 @@ class _SoilScreenState extends State<SoilScreen>
           const SizedBox(width: 16),
           Expanded(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildMiniCondition(LucideIcons.thermometer,
-                    "${slot['temp'].toStringAsFixed(0)}°C"),
-                _buildMiniCondition(LucideIcons.droplets,
-                    "${slot['humidity'].toStringAsFixed(0)}%"),
-                _buildMiniCondition(LucideIcons.wind,
-                    "${slot['windMps'].toStringAsFixed(1)} m/s"),
+                _buildMiniCondition(
+                  LucideIcons.thermometer,
+                  "${slot['temp'].toStringAsFixed(0)}°C",
+                  isHigh: slot['temp'] >= 28, // Highlight if hot
+                ),
+                Container(
+                    height: 30,
+                    width: 1,
+                    color: Colors.grey.shade300), // Divider
+                _buildMiniCondition(
+                  LucideIcons.droplets,
+                  "${slot['humidity'].toStringAsFixed(0)}%",
+                  isHigh: slot['humidity'] >= 80, // Highlight if high humidity
+                ),
+                Container(
+                    height: 30,
+                    width: 1,
+                    color: Colors.grey.shade300), // Divider
+                _buildMiniCondition(
+                  LucideIcons.wind,
+                  "${slot['windMps'].toStringAsFixed(1)} m/s",
+                  isHigh: slot['windMps'] > 3.0, // Highlight if too windy
+                ),
               ],
             ),
           ),
@@ -479,17 +496,19 @@ class _SoilScreenState extends State<SoilScreen>
     );
   }
 
-  Widget _buildMiniCondition(IconData icon, String value) {
+  Widget _buildMiniCondition(IconData icon, String value,
+      {bool isHigh = false}) {
     return Column(
       children: [
-        Icon(icon, size: 16, color: Colors.grey[400]),
+        Icon(icon,
+            size: 16, color: isHigh ? Colors.red.shade400 : Colors.grey[400]),
         const SizedBox(height: 4),
         Text(
           value,
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF1F2937),
+            color: isHigh ? Colors.red.shade600 : const Color(0xFF1F2937),
           ),
         ),
       ],

@@ -144,8 +144,60 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
+  // --- NEW: Helper method to show validation errors ---
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style:
+              const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _saveSettings() async {
     if (_isLoading) return;
+
+    // --- NEW: Data Validation Logic ---
+    for (var displayName in _sensorDisplayNames) {
+      String key = _displayToKey[displayName]!;
+      bool isEnabled = _alertConfigs[key]?['enabled'] ?? false;
+
+      if (isEnabled) {
+        String minText = _minControllers[key]?.text.trim() ?? '';
+        String maxText = _maxControllers[key]?.text.trim() ?? '';
+
+        // 1. Check if empty
+        if (minText.isEmpty || maxText.isEmpty) {
+          _showErrorSnackBar(
+              'Please enter both Min and Max limits for $displayName.');
+          return; // Stop saving
+        }
+
+        // 2. Check if valid numbers
+        double? minVal = double.tryParse(minText);
+        double? maxVal = double.tryParse(maxText);
+
+        if (minVal == null || maxVal == null) {
+          _showErrorSnackBar('Please enter valid numbers for $displayName.');
+          return; // Stop saving
+        }
+
+        // 3. Check if Max > Min
+        if (minVal >= maxVal) {
+          _showErrorSnackBar(
+              'Max limit must be greater than Min limit for $displayName.');
+          return; // Stop saving
+        }
+      }
+    }
+    // --- END Validation Logic ---
+
     setState(() => _isLoading = true);
 
     bool anyEnabled = false;

@@ -51,10 +51,10 @@ class CustomBottomNavBar extends StatelessWidget {
         return const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
-              icon: Icon(LucideIcons.wind), label: "Dust Risk"),
+              icon: Icon(LucideIcons.wind), label: "Intelligence"),
           BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
           BottomNavigationBarItem(
-              icon: Icon(LucideIcons.activity), label: "Emission"),
+              icon: Icon(LucideIcons.activity), label: "Compliance"),
           BottomNavigationBarItem(
               icon: Icon(Icons.notifications_none), label: "Alerts"),
         ];
@@ -100,8 +100,7 @@ class CustomBottomNavBar extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  CementDustSpreadScreen(deviceId: deviceId),
+              builder: (context) => CementDustSpreadScreen(deviceId: deviceId),
             ),
           );
           break;
@@ -128,8 +127,7 @@ class CustomBottomNavBar extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  CementEmissionScreen(deviceId: deviceId),
+              builder: (context) => CementEmissionScreen(deviceId: deviceId),
             ),
           );
           break;

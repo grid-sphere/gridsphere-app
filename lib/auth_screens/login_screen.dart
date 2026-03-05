@@ -67,6 +67,101 @@ class _LoginScreenState extends State<LoginScreen> {
     return _cookieJar.entries.map((e) => "${e.key}=${e.value}").join("; ");
   }
 
+  Future<void> _fetchDevicesAndIndustry(String cookie) async {
+    try {
+      final devicesResponse = await http.get(
+        Uri.parse('$_baseUrl/getDevices'),
+        headers: {
+          'Cookie': cookie,
+          'User-Agent': _userAgent,
+        },
+      );
+
+      if (devicesResponse.statusCode == 200) {
+        final devicesData = jsonDecode(devicesResponse.body);
+        List<dynamic> deviceList = [];
+
+        if (devicesData is List) {
+          deviceList = devicesData;
+        } else if (devicesData is Map && devicesData.containsKey('data')) {
+          if (devicesData['data'] is List) {
+            deviceList = devicesData['data'] as List;
+          }
+        }
+
+        if (deviceList.isNotEmpty) {
+          var firstDevice = deviceList[0];
+          String deviceId = firstDevice['d_id']?.toString() ?? "";
+
+          if (deviceId.isNotEmpty) {
+            SessionManager().setDeviceId(deviceId);
+            await _fetchIndustryType(cookie, deviceId);
+          } else {
+            await SessionManager().loadRole();
+          }
+        } else {
+          await SessionManager().loadRole();
+        }
+      } else {
+        debugPrint(
+            "Error fetching devices on login. Status: ${devicesResponse.statusCode}");
+        await SessionManager().loadRole();
+      }
+    } catch (e) {
+      debugPrint("Error fetching devices on login: $e");
+      await SessionManager().loadRole();
+    }
+  }
+
+  String _mapValueToRole(int val) {
+    if (val == 1) return 'agriculture';
+    if (val == 2) return 'cement';
+    return 'chemical'; // 0 or others
+  }
+
+  Future<void> _fetchIndustryType(String cookie, String deviceId) async {
+    try {
+      final industryResponse = await http.get(
+        Uri.parse('$_baseUrl/devices/$deviceId/industry'),
+        headers: {
+          'Cookie': cookie,
+          'User-Agent': _userAgent,
+        },
+      );
+
+      if (industryResponse.statusCode == 200) {
+        final indData = jsonDecode(industryResponse.body);
+
+        if (indData['status'] == true && indData['data'] != null) {
+          // Extract mapped integer (0, 1, 2)
+          int indValue = int.tryParse(
+                  indData['data']['industry_value']?.toString() ?? '1') ??
+              1;
+          String fetchedRole = _mapValueToRole(indValue);
+
+          // Save the fetched role
+          SessionManager().setRole(fetchedRole);
+          SessionManager().setIndustryValue(indValue);
+          await SessionManager().saveRole(fetchedRole, industryValue: indValue);
+
+          debugPrint(
+              "Industry type fetched successfully on login: $fetchedRole (Value: $indValue)");
+        } else {
+          debugPrint(
+              "Failed to extract valid industry type. API Response: ${industryResponse.body}");
+          await SessionManager().loadRole();
+        }
+      } else {
+        debugPrint(
+            "API Error fetching industry: ${industryResponse.statusCode} - ${industryResponse.body}");
+        await SessionManager().loadRole();
+      }
+    } catch (e) {
+      debugPrint("Error fetching industry type on login: $e");
+      await SessionManager().loadRole();
+    }
+  }
+
   Future<void> _handleLogin() async {
     FocusScope.of(context).unfocus();
 
@@ -109,19 +204,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
               if (loginData['status'] == true ||
                   loginData['status'] == 'success') {
+                _updateCookieJar(loginResponse.headers['set-cookie']);
+                final String finalCookies = _getCookieHeader();
+                debugPrint("✅ Login Success! Clean Cookies: $finalCookies");
+
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('session_cookie', finalCookies);
+
+                // Initialize SessionManager
+                SessionManager().setSessionCookie(finalCookies);
+
+                // Fetch initial location logic and industry type
+                await _fetchDevicesAndIndustry(finalCookies);
+
                 if (mounted) {
-                  _updateCookieJar(loginResponse.headers['set-cookie']);
-                  final String finalCookies = _getCookieHeader();
-                  debugPrint("✅ Login Success! Clean Cookies: $finalCookies");
-
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('session_cookie', finalCookies);
-
-                  // Initialize SessionManager
-                  SessionManager().setSessionCookie(finalCookies);
-
-                  // Fetch initial location logic implies dashboard load
-                  // For now direct navigation:
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (context) => const DashboardScreen(),
