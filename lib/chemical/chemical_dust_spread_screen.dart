@@ -10,6 +10,8 @@ import '../widgets/custom_bottom_nav_bar.dart';
 import '../session_manager/session_manager.dart';
 import 'chemical_process_stability_screen.dart';
 import '../widgets/home_back_button.dart';
+import '../widgets/home_pop_scope.dart'; // Import HomePopScope
+import '../theme/app_theme.dart'; // Import AppTheme
 
 class GoogleFonts {
   static TextStyle inter({
@@ -229,89 +231,82 @@ class _ChemicalDustSpreadScreenState extends State<ChemicalDustSpreadScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF166534),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF166534),
-        elevation: 0,
-        leading: const HomeBackButton(),
-        title: Text(
-          "Pollution Spread Risk",
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+    return HomePopScope(
+      child: Scaffold(
+        backgroundColor: AppTheme.primaryColor, // DYNAMIC BG
+        appBar: AppBar(
+          backgroundColor: AppTheme.primaryColor, // DYNAMIC APPBAR
+          elevation: 0,
+          leading: const HomeBackButton(),
+          title: Text(
+            "Pollution Spread Risk",
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
-        ),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            color: const Color(0xFF166534),
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white60,
-              labelStyle:
-                  GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: "Risk Index"),
-                Tab(text: "PM Levels"),
-              ],
+          centerTitle: true,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Container(
+              color: AppTheme.primaryColor, // DYNAMIC TAB BG
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                indicatorWeight: 3,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white60,
+                labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold, fontSize: 16),
+                dividerColor: Colors.transparent,
+                tabs: const [
+                  Tab(text: "Risk Index"),
+                  Tab(text: "PM Levels"),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => ChatScreen(deviceId: widget.deviceId)),
-          );
-        },
-        backgroundColor: const Color(0xFF166534),
-        elevation: 4.0,
-        shape: const CircleBorder(),
-        child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
-      ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: _selectedIndex,
-        deviceId: widget.deviceId,
-        onItemTapped: _onNavTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(
-              icon: Icon(LucideIcons.wind), label: "Pollution"),
-          BottomNavigationBarItem(icon: SizedBox(height: 24), label: ""),
-          BottomNavigationBarItem(
-              icon: Icon(LucideIcons.gauge), label: "Stability"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_none), label: "Alerts"),
-        ],
-      ),
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => ChatScreen(deviceId: widget.deviceId)),
+            );
+          },
+          backgroundColor: AppTheme.primaryColor, // DYNAMIC FAB
+          elevation: 4.0,
+          shape: const CircleBorder(),
+          child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF166534)))
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildRiskIndexContent(),
-                    _buildPMLevelsContent(),
-                  ],
-                ),
+        bottomNavigationBar: CustomBottomNavBar(
+          currentIndex: _selectedIndex,
+          deviceId: widget.deviceId,
+          onItemTapped: _onNavTapped,
+        ),
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                        color: AppTheme.primaryColor)) // DYNAMIC LOADER
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRiskIndexContent(),
+                      _buildPMLevelsContent(),
+                    ],
+                  ),
+          ),
         ),
       ),
     );

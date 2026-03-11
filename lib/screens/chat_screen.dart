@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../widgets/home_back_button.dart';
 import '../widgets/home_pop_scope.dart'; // Import HomePopScope
+import '../theme/app_theme.dart'; // Import AppTheme
 
 // Simple GoogleFonts fallback
 class GoogleFonts {
@@ -62,7 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
       {
         'from': 'ai',
         'text':
-            "Namaste! 剌 I'm your Kisan AI companion from Grid Sphere. 言\n\nI'm here to help you keep a close eye on your farm. I have your real-time data for Device ${widget.deviceId} ready! \n\nHow is your field doing today? Would you like me to check the soil health or recent rainfall for you?"
+            "Namaste! 🌾 I'm your AI companion from Grid Sphere. 🚜\n\nI'm here to help you keep a close eye on your operations. I have your real-time data for Device ${widget.deviceId} ready! \n\nHow are things doing today? Would you like me to check the conditions or recent history for you?"
       }
     ];
   }
@@ -113,7 +114,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.add({
             'from': 'ai',
             'text':
-                "I'm having a little trouble connecting to the field experts right now. Please try again in a moment! 囿"
+                "I'm having a little trouble connecting to the experts right now. Please try again in a moment! 📡"
           });
         });
       }
@@ -123,7 +124,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.add({
             'from': 'ai',
             'text':
-                "It seems I've lost my connection to the sensors. Let me check my signal and try again soon! 藤"
+                "It seems I've lost my connection to the sensors. Let me check my signal and try again soon! 🔌"
           });
         });
       }
@@ -154,12 +155,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- UPDATED: Use HomePopScope Wrapper ---
     return HomePopScope(
       child: Scaffold(
         backgroundColor: const Color(0xFFF1F5F9), // Light background
         appBar: AppBar(
-          backgroundColor: const Color(0xFF166534),
+          // --- DYNAMIC APP BAR COLOR ---
+          backgroundColor: AppTheme.primaryColor,
           elevation: 0,
           leading: const HomeBackButton(),
           title: Row(
@@ -178,14 +179,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Kisan AI",
+                    "AI Assistant",
                     style: GoogleFonts.inter(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18),
                   ),
                   Text(
-                    "Smart Farm Assistant",
+                    "Smart Operations",
                     style:
                         GoogleFonts.inter(color: Colors.white70, fontSize: 11),
                   ),
@@ -211,18 +212,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         body: Stack(
           children: [
-            // Decorative Background Elements
+            // Decorative Background Elements with DYNAMIC COLORS & ICONS
             Positioned(
               bottom: 100,
               right: -50,
-              child: Icon(LucideIcons.leaf,
-                  size: 300, color: const Color(0xFF166534).withOpacity(0.03)),
+              child: Icon(AppTheme.industryIcon,
+                  size: 300, color: AppTheme.primaryColor.withOpacity(0.03)),
             ),
             Positioned(
               top: 50,
               left: -30,
-              child: Icon(LucideIcons.sprout,
-                  size: 150, color: const Color(0xFF166534).withOpacity(0.03)),
+              child: Icon(AppTheme.industryIcon,
+                  size: 150, color: AppTheme.primaryColor.withOpacity(0.03)),
             ),
 
             Column(
@@ -268,14 +269,14 @@ class _ChatScreenState extends State<ChatScreen> {
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bot icon container removed to simplify the chat box UI
           Flexible(
             child: Container(
               padding: const EdgeInsets.all(14),
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.75),
               decoration: BoxDecoration(
-                color: isUser ? const Color(0xFF166534) : Colors.white,
+                // --- DYNAMIC USER MESSAGE COLOR ---
+                color: isUser ? AppTheme.primaryColor : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
@@ -323,7 +324,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 _sensorFeatures[index],
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: const Color(0xFF166534),
+                  // --- DYNAMIC TEXT COLOR ---
+                  color: AppTheme.primaryColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -369,7 +371,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _controller,
                 style: GoogleFonts.inter(fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: "Type your farm query...",
+                  hintText: "Type your query...",
                   hintStyle: GoogleFonts.inter(color: Colors.grey[500]),
                   border: InputBorder.none,
                   contentPadding:
@@ -386,12 +388,13 @@ class _ChatScreenState extends State<ChatScreen> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _isLoading ? Colors.grey[300] : const Color(0xFF166534),
+                // --- DYNAMIC SEND BUTTON COLOR ---
+                color: _isLoading ? Colors.grey[300] : AppTheme.primaryColor,
                 shape: BoxShape.circle,
                 boxShadow: [
                   if (!_isLoading)
                     BoxShadow(
-                      color: const Color(0xFF166534).withOpacity(0.3),
+                      color: AppTheme.primaryColor.withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -427,14 +430,16 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(
+                SizedBox(
                     width: 12,
                     height: 12,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF166534))),
+                        strokeWidth: 2,
+                        // --- DYNAMIC LOADER COLOR ---
+                        color: AppTheme.primaryColor)),
                 const SizedBox(width: 12),
                 Text(
-                  "Analyzing field data...",
+                  "Analyzing data...",
                   style:
                       GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
                 ),

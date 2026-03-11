@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../session_manager/session_manager.dart';
 import 'package:google_fonts/google_fonts.dart'; // The real package
+import '../theme/app_theme.dart'; // Import AppTheme
 
 // --- FIX: Use 'hide GoogleFonts' to ignore the local helpers in these files ---
 import 'login_screen.dart' hide GoogleFonts;
@@ -165,7 +166,8 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF166534),
+      // --- DYNAMIC BACKGROUND COLOR ---
+      backgroundColor: AppTheme.primaryColor,
       body: Center(
         child: FadeTransition(
           opacity: _opacity,

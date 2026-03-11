@@ -7,6 +7,7 @@ import '../services/background_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
 import '../widgets/home_pop_scope.dart'; // Import HomePopScope
+import '../theme/app_theme.dart'; // Import the centralized AppTheme
 
 class GoogleFonts {
   static TextStyle inter({
@@ -24,7 +25,6 @@ class GoogleFonts {
 }
 
 class AlertsScreen extends StatefulWidget {
-  // Removed sessionCookie from constructor
   final String deviceId;
   final Map<String, dynamic>? sensorData;
   final double latitude;
@@ -43,7 +43,6 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  // int _selectedIndex = 4; // Managed by CustomBottomNavBar
   bool _isLoading = true;
 
   // Controllers for text inputs
@@ -110,9 +109,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    // Assuming SessionManager has getAlertSettings method as per your previous logic
-    // If not, you might need to add it to SessionManager or use SharedPreferences directly here.
-    // Using SessionManager as requested for consistency.
     String? jsonStr = await SessionManager.getAlertSettings();
     if (jsonStr != null) {
       try {
@@ -144,7 +140,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
-  // --- NEW: Helper method to show validation errors ---
+  // Helper method to show validation errors
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -163,7 +159,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Future<void> _saveSettings() async {
     if (_isLoading) return;
 
-    // --- NEW: Data Validation Logic ---
+    // --- Data Validation Logic ---
     for (var displayName in _sensorDisplayNames) {
       String key = _displayToKey[displayName]!;
       bool isEnabled = _alertConfigs[key]?['enabled'] ?? false;
@@ -258,7 +254,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- UPDATED: Use HomePopScope Wrapper ---
     return HomePopScope(
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA), // Light background
@@ -303,7 +298,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
             // Save Button
             IconButton(
               icon: Icon(Icons.check_circle,
-                  color: _isLoading ? Colors.grey : const Color(0xFF00B0FF),
+                  // Dynamic save button color
+                  color: _isLoading ? Colors.grey : AppTheme.primaryColor,
                   size: 28),
               onPressed: _isLoading ? null : _saveSettings,
               tooltip: "Save Settings",
@@ -320,7 +316,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
               MaterialPageRoute(builder: (context) => const ChatScreen()),
             );
           },
-          backgroundColor: const Color(0xFF166534),
+          // DYNAMIC THEME COLOR
+          backgroundColor: AppTheme.primaryColor,
           elevation: 4.0,
           shape: const CircleBorder(),
           child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
@@ -331,7 +328,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
           currentIndex: 4, // Alerts is index 4
           deviceId: widget.deviceId,
           sensorData: widget.sensorData,
-          // Using passed coordinates (or falling back to defaults if 0.0)
           latitude: widget.latitude != 0.0
               ? widget.latitude
               : SessionManager().latitude,
@@ -342,8 +338,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
         // --- BODY ---
         body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF166534)))
+            ? Center(
+                // DYNAMIC LOADER COLOR
+                child: CircularProgressIndicator(color: AppTheme.primaryColor))
             : ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
@@ -370,7 +367,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Widget _buildSensorCard(String displayName) {
     String key = _displayToKey[displayName]!;
     bool isEnabled = _alertConfigs[key]?['enabled'] ?? false;
-    Color primaryColor = const Color(0xFF166534); // Brand color
+
+    // FETCH DYNAMIC THEME COLORS
+    Color primaryColor = AppTheme.primaryColor;
+    Color lightBgColor = AppTheme.lightBackgroundColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -395,13 +395,15 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: isEnabled
-                        ? primaryColor.withOpacity(0.1)
+                        ? lightBgColor // Use the dynamic light background color
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     _sensorIcons[displayName] ?? Icons.sensors,
-                    color: isEnabled ? primaryColor : Colors.grey,
+                    color: isEnabled
+                        ? primaryColor
+                        : Colors.grey, // Dynamic primary color
                     size: 24,
                   ),
                 ),
@@ -418,7 +420,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ),
                 Switch.adaptive(
                   value: isEnabled,
-                  activeColor: primaryColor,
+                  activeColor: primaryColor, // Dynamic switch color
                   onChanged: (val) {
                     setState(() {
                       if (_alertConfigs.containsKey(key)) {
@@ -431,9 +433,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
           ),
           if (isEnabled) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: const Divider(height: 1),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(height: 1),
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),

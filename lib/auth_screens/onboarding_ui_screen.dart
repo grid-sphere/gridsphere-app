@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/dashboard_screen.dart'; // Import Dashboard
-
-const Color brandGreen = Color(0xFF166534);
+import '../theme/app_theme.dart'; // Import AppTheme
 
 class OnboardingUIScreen extends StatefulWidget {
   const OnboardingUIScreen({super.key});
@@ -15,6 +14,11 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
   String? selectedIndustry;
 
   final List<_IndustryItem> industries = [
+    _IndustryItem(
+      title: "Agriculture",
+      subtitle: "Smart farming & soil monitoring",
+      icon: Icons.eco,
+    ),
     _IndustryItem(
       title: "Chemical",
       subtitle: "Hazardous gas & levels tracking",
@@ -60,6 +64,9 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Dynamic brand color
+    Color currentBrandColor = AppTheme.primaryColor;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
@@ -72,10 +79,10 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                 height: 72,
                 width: 72,
                 child: Image.asset(
-                  "assets/mainlogo.png", // Changed to match other screens pattern if needed, keeping mainlogo.png as per file
+                  "assets/mainlogo.png",
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.public, size: 72, color: brandGreen),
+                      Icon(Icons.public, size: 72, color: currentBrandColor),
                 ),
               ),
               const SizedBox(height: 20),
@@ -116,11 +123,13 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? brandGreen.withOpacity(0.12)
+                              ? currentBrandColor.withOpacity(0.12)
                               : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isSelected ? brandGreen : Colors.transparent,
+                            color: isSelected
+                                ? currentBrandColor
+                                : Colors.transparent,
                             width: 1.4,
                           ),
                         ),
@@ -130,13 +139,13 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? brandGreen.withOpacity(0.15)
+                                    ? currentBrandColor.withOpacity(0.15)
                                     : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 item.icon,
-                                color: brandGreen,
+                                color: currentBrandColor,
                                 size: 22,
                               ),
                             ),
@@ -165,9 +174,9 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                               ),
                             ),
                             if (isSelected)
-                              const Icon(
+                              Icon(
                                 Icons.check_circle,
-                                color: brandGreen,
+                                color: currentBrandColor,
                               ),
                           ],
                         ),
@@ -188,21 +197,21 @@ class _OnboardingUIScreenState extends State<OnboardingUIScreen> {
                           debugPrint(
                               "Selected Industry Saved: $selectedIndustry");
 
-                          // --- UPDATED: Navigation to Dashboard (Final Step) ---
+                          // --- Navigation to Dashboard ---
                           if (context.mounted) {
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
                                   builder: (context) =>
                                       const DashboardScreen()),
-                              (route) => false, // Clears back stack
+                              (route) => false,
                             );
                           }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: selectedIndustry == null
                         ? Colors.grey.shade300
-                        : brandGreen,
+                        : currentBrandColor,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),

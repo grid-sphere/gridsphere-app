@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'login_screen.dart';
 import '../session_manager/session_manager.dart';
+import '../theme/app_theme.dart'; // Import AppTheme
 
 // Fallback GoogleFonts class
 class GoogleFonts {
@@ -38,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic> userData = {};
   bool isLoading = true;
   String _selectedRole = SessionManager().role;
-  String? _activeDeviceId; // Added to hold the device ID for API calls
+  String? _activeDeviceId;
 
   final Map<String, String> _roleLabels = {
     'agriculture': 'Agriculture',
@@ -55,13 +56,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _mapValueToRole(int val) {
     if (val == 1) return 'agriculture';
     if (val == 2) return 'cement';
-    return 'chemical'; // 0 or others
+    return 'chemical';
   }
 
   int _mapRoleToValue(String role) {
     if (role == 'agriculture') return 1;
     if (role == 'cement') return 2;
-    return 0; // chemical/others
+    return 0;
   }
 
   Future<void> _fetchUserData() async {
@@ -86,7 +87,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (sessionData['user_id'] != null) {
           userId = sessionData['user_id'].toString();
         }
-        // Initial name from session if available
         if (sessionData['username'] != null) {
           username = sessionData['username'].toString();
         }
@@ -112,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (userId == "Loading...") userId = "admin";
       }
 
-      // 2. Fetch Devices (Used for Address, Farmer Name fallback, and Device ID)
+      // 2. Fetch Devices
       final devicesResponse = await http.get(
         Uri.parse('$_baseUrl/getDevices'),
         headers: {
@@ -138,16 +138,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (deviceList.isNotEmpty) {
           var firstDevice = deviceList[0];
 
-          // Store device ID for the new Industry API
           _activeDeviceId = firstDevice['d_id']?.toString();
 
-          // Use 'farm_name' from the device API for the farmer's display name
           String farmNameFromApi = firstDevice['farm_name']?.toString() ?? "";
           if (farmNameFromApi.isNotEmpty) {
             username = farmNameFromApi;
           }
 
-          // Fallback address from device if session address is generic
           if (address == "India" || address.isEmpty) {
             address = firstDevice['address']?.toString() ??
                 firstDevice['location']?.toString() ??
@@ -156,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      // 3. Fetch the current Industry Type from the new backend API (integer mapping)
+      // 3. Fetch the current Industry Type
       if (_activeDeviceId != null) {
         try {
           final industryResponse = await http.get(
@@ -222,12 +219,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- POST Industry Type Update to Backend as Integer ---
   Future<bool> _updateIndustryTypeOnBackend(String newRole) async {
     if (_activeDeviceId == null) return false;
 
     try {
-      // 1. Fetch CSRF token for secure POST
       final csrfResponse = await http.get(
         Uri.parse('$_baseUrl/getCSRF'),
         headers: {'User-Agent': 'FlutterApp', 'Cookie': widget.sessionCookie},
@@ -243,7 +238,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       int newMappedValue = _mapRoleToValue(newRole);
 
-      // 2. Prepare POST Body (Sending as strictly defined values (0, 1, 2))
       Map<String, String> bodyData = {
         'industry_type': newMappedValue.toString(),
       };
@@ -251,7 +245,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         bodyData[csrfName] = csrfValue;
       }
 
-      // 3. Make the POST request
       final response = await http.post(
         Uri.parse('$_baseUrl/devices/$_activeDeviceId/industry'),
         headers: {
@@ -314,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF166534), // Dark Green Header
+      backgroundColor: AppTheme.primaryColor, // DYNAMIC BACKGROUND COLOR
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -459,7 +452,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Helper to map Role to Icon ---
   IconData _getRoleIcon(String role) {
     switch (role) {
       case 'agriculture':
@@ -473,7 +465,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- Show Beautiful Bottom Sheet ---
   void _showIndustrySelector() {
     showModalBottomSheet(
       context: context,
@@ -514,10 +505,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
                   onTap: () async {
-                    // Close the bottom sheet immediately using sheetContext
                     Navigator.pop(sheetContext);
 
-                    // We can now safely use the main 'context' from State
                     if (_activeDeviceId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -528,10 +517,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       return;
                     }
 
-                    // Show loader in the background UI
                     setState(() => isLoading = true);
 
-                    // Call backend API
                     bool success =
                         await _updateIndustryTypeOnBackend(entry.key);
 
@@ -548,9 +535,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Industry type updated successfully!"),
-                          backgroundColor: Color(0xFF166534),
+                        SnackBar(
+                          content:
+                              const Text("Industry type updated successfully!"),
+                          backgroundColor:
+                              AppTheme.primaryColor, // DYNAMIC SNACKBAR
                         ),
                       );
                     } else {
@@ -562,7 +551,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     }
 
-                    // Remove loader
                     setState(() => isLoading = false);
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -570,11 +558,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF166534).withOpacity(0.05)
+                          ? AppTheme.primaryColor
+                              .withOpacity(0.05) // DYNAMIC SELECTION
                           : Colors.white,
                       border: Border.all(
                         color: isSelected
-                            ? const Color(0xFF166534)
+                            ? AppTheme.primaryColor // DYNAMIC BORDER
                             : Colors.grey.shade200,
                         width: isSelected ? 1.5 : 1,
                       ),
@@ -586,7 +575,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(0xFF166534)
+                                ? AppTheme.primaryColor // DYNAMIC ICON BG
                                 : Colors.grey.shade100,
                             shape: BoxShape.circle,
                           ),
@@ -608,14 +597,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ? FontWeight.bold
                                   : FontWeight.w500,
                               color: isSelected
-                                  ? const Color(0xFF166534)
+                                  ? AppTheme.primaryColor // DYNAMIC TEXT
                                   : const Color(0xFF374151),
                             ),
                           ),
                         ),
                         if (isSelected)
-                          const Icon(LucideIcons.checkCircle,
-                              color: Color(0xFF166534), size: 20),
+                          Icon(LucideIcons.checkCircle,
+                              color: AppTheme.primaryColor,
+                              size: 20), // DYNAMIC CHECK
                       ],
                     ),
                   ),
@@ -629,7 +619,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Trigger Widget ---
   Widget _buildRoleDropdown() {
     return GestureDetector(
       onTap: _showIndustrySelector,
@@ -651,11 +640,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF166534).withOpacity(0.1),
+                color: AppTheme.lightBackgroundColor, // DYNAMIC BG
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(_getRoleIcon(_selectedRole),
-                  color: const Color(0xFF166534), size: 20),
+                  color: AppTheme.primaryColor, size: 20), // DYNAMIC ICON COLOR
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -708,10 +697,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF166534).withOpacity(0.1),
+              color: AppTheme.lightBackgroundColor, // DYNAMIC BG
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: const Color(0xFF166534), size: 20),
+            child: Icon(icon,
+                color: AppTheme.primaryColor, size: 20), // DYNAMIC ICON COLOR
           ),
           const SizedBox(width: 16),
           Expanded(

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:math';
-// import 'package:http/http.dart' as http; // <-- Removed
-// import 'dart:convert'; // <-- Removed
 
 import '../services/mock_data_store.dart';
 import '../screens/chat_screen.dart';
@@ -12,8 +10,7 @@ import '../widgets/custom_bottom_nav_bar.dart';
 import '../widgets/home_back_button.dart';
 import '../widgets/home_pop_scope.dart';
 import 'cement_dust_spread_screen.dart';
-
-// --- IMPORT NEW SERVICE ---
+import '../theme/app_theme.dart'; // Import AppTheme
 import '../services/receive_readings.dart';
 
 class GoogleFonts {
@@ -92,7 +89,6 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
     _fetchDataAndCalculate();
   }
 
-  // --- UPDATED FETCH FUNCTION ---
   Future<void> _fetchDataAndCalculate() async {
     if (widget.deviceId.isEmpty || widget.deviceId.contains("Demo")) {
       _loadPersistentData();
@@ -109,16 +105,6 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
       if (!mounted) return;
 
       if (reading != null) {
-        // --- DEBUG PRINT ---
-        debugPrint("\n🏭 --- CEMENT EMISSION DATA ---");
-        debugPrint("PM2.5: ${reading.pm25}");
-        debugPrint("Wind: ${reading.windSpeed} m/s @ ${reading.windDirection}°");
-        debugPrint("Pressure: ${reading.pressure}");
-        debugPrint("Sunlight: ${reading.light}");
-        debugPrint("History Points Found: ${history.length}");
-        debugPrint("------------------------------\n");
-        // -------------------
-
         setState(() {
           windSpeed = reading.windSpeed;
           windDirection = reading.windDirection; // Now using real direction
@@ -131,7 +117,8 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
           if (history.isNotEmpty) {
             // Take up to the last 24 points from history for calculations
             // If history is less than 24, we fill the rest with the current PM2.5
-            List<double> recentHistory = history.take(24).map((r) => r.pm25).toList();
+            List<double> recentHistory =
+                history.take(24).map((r) => r.pm25).toList();
 
             // Ensure we have at least some data in the list
             if (recentHistory.length < 24) {
@@ -173,8 +160,6 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
     _runSuperTabAlgorithms();
   }
 
-  // NOTE: This function is technically redundant if we fetch history from API,
-  // but good to keep as a failsafe helper.
   void _fillMissingSensorsWithPersistence() {
     final data = MockDataStore().getOrGenerateData(widget.deviceId);
     windDirection = data['windDirection'];
@@ -183,29 +168,40 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
 
   void _runSuperTabAlgorithms() {
     // --- TAB 3: DYNAMICS ---
-    if (windSpeed > 4 && pm25 > 80) windEffect = "Wind Lifting Dust";
-    else if (windSpeed > 4 && pm25 < 50) windEffect = "Wind Clearing Pollution";
-    else if (windSpeed < 2) windEffect = "Calm Accumulation";
-    else windEffect = "Neutral Transport";
+    if (windSpeed > 4 && pm25 > 80)
+      windEffect = "Wind Lifting Dust";
+    else if (windSpeed > 4 && pm25 < 50)
+      windEffect = "Wind Clearing Pollution";
+    else if (windSpeed < 2)
+      windEffect = "Calm Accumulation";
+    else
+      windEffect = "Neutral Transport";
 
     // Safety check for empty array
     if (hourlyPmLast24.isEmpty) hourlyPmLast24 = List.filled(24, pm25);
 
-    double avgGlobal = hourlyPmLast24.reduce((a, b) => a + b) / hourlyPmLast24.length;
+    double avgGlobal =
+        hourlyPmLast24.reduce((a, b) => a + b) / hourlyPmLast24.length;
     double avgCalm = avgGlobal * 1.4;
     calmAccumulationScore = avgCalm / (avgGlobal == 0 ? 1 : avgGlobal);
 
     humiditySuppression = (100 - humidity) * 0.5;
 
-    if (pressure < 1002) pressureTrend = "Dropping (Instability Likely)";
-    else pressureTrend = "Stable System";
+    if (pressure < 1002)
+      pressureTrend = "Dropping (Instability Likely)";
+    else
+      pressureTrend = "Stable System";
 
     solarDryingEffect = sunlight > 5000 ? 1.4 : 0.9;
 
-    if (windDirection >= 30 && windDirection <= 80) dominantSector = "Crusher (30°-80°)";
-    else if (windDirection >= 120 && windDirection <= 160) dominantSector = "Kiln (120°-160°)";
-    else if (windDirection >= 200 && windDirection <= 240) dominantSector = "Loading (200°-240°)";
-    else dominantSector = "Undefined Sector";
+    if (windDirection >= 30 && windDirection <= 80)
+      dominantSector = "Crusher (30°-80°)";
+    else if (windDirection >= 120 && windDirection <= 160)
+      dominantSector = "Kiln (120°-160°)";
+    else if (windDirection >= 200 && windDirection <= 240)
+      dominantSector = "Loading (200°-240°)";
+    else
+      dominantSector = "Undefined Sector";
 
     // --- TAB 4: COMPLIANCE ---
     pm24hAvg = avgGlobal;
@@ -214,27 +210,32 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
     // Calculate 6h avg (safe check for list length)
     int len = hourlyPmLast24.length;
     int start = len > 6 ? len - 6 : 0;
-    double pm6hAvg = hourlyPmLast24.sublist(start).fold(0.0, (a, b) => a + b) / (len - start);
+    double pm6hAvg = hourlyPmLast24.sublist(start).fold(0.0, (a, b) => a + b) /
+        (len - start);
 
     complianceRisk = pm6hAvg > (60 * 0.7) ? "High Risk" : "Low Risk";
 
     double sumExcess = 0;
-    for(var pm in hourlyPmLast24) if(pm > 60) sumExcess += (pm - 60);
+    for (var pm in hourlyPmLast24) if (pm > 60) sumExcess += (pm - 60);
     exceedanceSeverity = sumExcess;
 
     double mean = pm24hAvg;
-    double sumSquaredDiff = hourlyPmLast24.map((x) => pow(x - mean, 2)).reduce((a, b) => a + b).toDouble();
+    double sumSquaredDiff = hourlyPmLast24
+        .map((x) => pow(x - mean, 2))
+        .reduce((a, b) => a + b)
+        .toDouble();
     complianceStability = sqrt(sumSquaredDiff / hourlyPmLast24.length);
 
     performanceScore = max(0, 100 - ((pm24hAvg / 60) * 100));
-    controlEffectiveness = isCompliant ? "Sprinklers Active" : "Review Controls";
+    controlEffectiveness =
+        isCompliant ? "Sprinklers Active" : "Review Controls";
     weeklyTrend = performanceScore > 80 ? "Stable" : "Degrading";
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // --- NEW: Improved Bottom Sheet UI ---
-  void _showDetailBottomSheet(BuildContext context, String title, String description, String status, IconData icon, Color color) {
+  void _showDetailBottomSheet(BuildContext context, String title,
+      String description, String status, IconData icon, Color color) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -249,31 +250,72 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+            Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
             Row(children: [
-              Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 28)),
+              Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 28)),
               const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("METRIC DETAILS", style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.0)),
-                Text(title, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF1F2937))),
-              ])),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text("METRIC DETAILS",
+                        style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[500],
+                            letterSpacing: 1.0)),
+                    Text(title,
+                        style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1F2937))),
+                  ])),
             ]),
             const SizedBox(height: 24),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: color.withOpacity(0.05), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.1))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("CURRENT STATUS", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
-                const SizedBox(height: 6),
-                Text(status, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-              ]),
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color.withOpacity(0.1))),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("CURRENT STATUS",
+                        style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: color)),
+                    const SizedBox(height: 6),
+                    Text(status,
+                        style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87)),
+                  ]),
             ),
             const SizedBox(height: 24),
-            Text("Scientific Explanation", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+            Text("Scientific Explanation",
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800])),
             const SizedBox(height: 8),
-            Text(description, style: GoogleFonts.inter(fontSize: 15, height: 1.6, color: Colors.grey[600])),
+            Text(description,
+                style: GoogleFonts.inter(
+                    fontSize: 15, height: 1.6, color: Colors.grey[600])),
             const SizedBox(height: 20),
           ],
         ),
@@ -293,11 +335,21 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
 
   void _onNavTapped(int index) {
     if (index == 0) {
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const DashboardScreen()), (route) => false);
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          (route) => false);
     } else if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => CementDustSpreadScreen(deviceId: widget.deviceId)));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  CementDustSpreadScreen(deviceId: widget.deviceId)));
     } else if (index == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => AlertsScreen(deviceId: widget.deviceId)));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => AlertsScreen(deviceId: widget.deviceId)));
     }
   }
 
@@ -305,24 +357,29 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
   Widget build(BuildContext context) {
     return HomePopScope(
       child: Scaffold(
-        backgroundColor: const Color(0xFF166534),
+        backgroundColor: AppTheme.primaryColor, // DYNAMIC BACKGROUND
         appBar: AppBar(
-          backgroundColor: const Color(0xFF166534),
+          backgroundColor: AppTheme.primaryColor, // DYNAMIC APP BAR
           elevation: 0,
           leading: const HomeBackButton(),
-          title: Text("Physics & Compliance", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text("Physics & Compliance",
+              style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18)),
           centerTitle: true,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
             child: Container(
-              color: const Color(0xFF166534),
+              color: AppTheme.primaryColor, // DYNAMIC TAB BAR BG
               child: TabBar(
                 controller: _tabController,
                 indicatorColor: Colors.white,
                 indicatorWeight: 3,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white60,
-                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold, fontSize: 14),
                 dividerColor: Colors.transparent,
                 tabs: const [Tab(text: "Dynamics"), Tab(text: "CPCB Status")],
               ),
@@ -331,24 +388,34 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: FloatingActionButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(deviceId: widget.deviceId))),
-          backgroundColor: const Color(0xFF166534),
+          onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => ChatScreen(deviceId: widget.deviceId))),
+          backgroundColor: AppTheme.primaryColor, // DYNAMIC FAB
           elevation: 4.0,
           shape: const CircleBorder(),
           child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
         ),
-        bottomNavigationBar: CustomBottomNavBar(currentIndex: _selectedIndex, deviceId: widget.deviceId, onItemTapped: _onNavTapped),
+        bottomNavigationBar: CustomBottomNavBar(
+            currentIndex: _selectedIndex,
+            deviceId: widget.deviceId,
+            onItemTapped: _onNavTapped),
         body: Container(
           width: double.infinity,
-          decoration: const BoxDecoration(color: Color(0xFFF8FAFC), borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+          decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF166534)))
+                ? Center(
+                    child: CircularProgressIndicator(
+                        color: AppTheme.primaryColor)) // DYNAMIC LOADER
                 : TabBarView(
-              controller: _tabController,
-              children: [_buildDynamicsTab(), _buildComplianceTab()],
-            ),
+                    controller: _tabController,
+                    children: [_buildDynamicsTab(), _buildComplianceTab()],
+                  ),
           ),
         ),
       ),
@@ -362,11 +429,20 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
         children: [
           // Wind Effect
           GestureDetector(
-            onTap: () => _showDetailBottomSheet(context, "Wind Effect", "Determines if wind is helping clear pollution or actively lifting settled dust.", windEffect, LucideIcons.wind, Colors.blue),
+            onTap: () => _showDetailBottomSheet(
+                context,
+                "Wind Effect",
+                "Determines if wind is helping clear pollution or actively lifting settled dust.",
+                windEffect,
+                LucideIcons.wind,
+                Colors.blue),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: windEffect.contains("Clearing") ? [Colors.green.shade400, Colors.green.shade600] : [Colors.orange.shade400, Colors.orange.shade600]),
+                gradient: LinearGradient(
+                    colors: windEffect.contains("Clearing")
+                        ? [Colors.green.shade400, Colors.green.shade600]
+                        : [Colors.orange.shade400, Colors.orange.shade600]),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -375,11 +451,19 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("WIND DYNAMICS", style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
+                      Text("WIND DYNAMICS",
+                          style: GoogleFonts.inter(
+                              fontSize: 12, color: Colors.white70)),
                       const SizedBox(height: 8),
-                      Text(windEffect, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(windEffect,
+                          style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
                       const SizedBox(height: 4),
-                      Text("Speed: ${windSpeed.toStringAsFixed(1)} m/s", style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
+                      Text("Speed: ${windSpeed.toStringAsFixed(1)} m/s",
+                          style: GoogleFonts.inter(
+                              fontSize: 12, color: Colors.white70)),
                     ],
                   ),
                   const Icon(LucideIcons.wind, color: Colors.white, size: 40),
@@ -390,14 +474,55 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
           const SizedBox(height: 20),
           // Metrics
           GridView.count(
-            crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.3,
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.3,
             children: [
-              _buildMetricCard("Calm Accumulation", calmAccumulationScore.toStringAsFixed(2), "Score", LucideIcons.cloudFog, Colors.purple, "Ratio of PM during calm air vs average. >1.3 indicates stagnation."),
-              _buildMetricCard("Humidity Impact", "-${humiditySuppression.toStringAsFixed(1)} units", "Suppression", LucideIcons.droplet, Colors.blueAccent, "Reduction in dust potential due to air moisture."),
-              _buildMetricCard("Solar Drying", solarDryingEffect.toStringAsFixed(1), "Ratio", LucideIcons.sun, Colors.orange, "Impact of sunlight evaporating moisture and freeing dust."),
-              _buildMetricCard("Pressure Trend", pressureTrend, "Barometer", LucideIcons.gauge, Colors.blue, "Falling pressure often precedes weather shifts."),
-              _buildMetricCard("Dominant Source", dominantSector, "Sector", LucideIcons.compass, Colors.red, "Wind direction correlation with known plant zones."),
-              _buildMetricCard("Wind Direction", "${windDirection.toStringAsFixed(0)}°", "Compass", LucideIcons.navigation, Colors.teal, "Current direction of wind flow."),
+              _buildMetricCard(
+                  "Calm Accumulation",
+                  calmAccumulationScore.toStringAsFixed(2),
+                  "Score",
+                  LucideIcons.cloudFog,
+                  Colors.purple,
+                  "Ratio of PM during calm air vs average. >1.3 indicates stagnation."),
+              _buildMetricCard(
+                  "Humidity Impact",
+                  "-${humiditySuppression.toStringAsFixed(1)} units",
+                  "Suppression",
+                  LucideIcons.droplet,
+                  Colors.blueAccent,
+                  "Reduction in dust potential due to air moisture."),
+              _buildMetricCard(
+                  "Solar Drying",
+                  solarDryingEffect.toStringAsFixed(1),
+                  "Ratio",
+                  LucideIcons.sun,
+                  Colors.orange,
+                  "Impact of sunlight evaporating moisture and freeing dust."),
+              _buildMetricCard(
+                  "Pressure Trend",
+                  pressureTrend,
+                  "Barometer",
+                  LucideIcons.gauge,
+                  Colors.blue,
+                  "Falling pressure often precedes weather shifts."),
+              _buildMetricCard(
+                  "Dominant Source",
+                  dominantSector,
+                  "Sector",
+                  LucideIcons.compass,
+                  Colors.red,
+                  "Wind direction correlation with known plant zones."),
+              _buildMetricCard(
+                  "Wind Direction",
+                  "${windDirection.toStringAsFixed(0)}°",
+                  "Compass",
+                  LucideIcons.navigation,
+                  Colors.teal,
+                  "Current direction of wind flow."),
             ],
           ),
           const SizedBox(height: 40),
@@ -414,22 +539,56 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
         children: [
           // Performance
           GestureDetector(
-            onTap: () => _showDetailBottomSheet(context, "Environmental Performance", "100 - ((24h Avg PM / 60) * 100). Higher is better.", "${performanceScore.toStringAsFixed(0)}%", LucideIcons.award, compColor),
+            onTap: () => _showDetailBottomSheet(
+                context,
+                "Environmental Performance",
+                "100 - ((24h Avg PM / 60) * 100). Higher is better.",
+                "${performanceScore.toStringAsFixed(0)}%",
+                LucideIcons.award,
+                compColor),
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)]),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05), blurRadius: 20)
+                  ]),
               child: Column(
                 children: [
-                  Text("PERFORMANCE SCORE", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500])),
+                  Text("PERFORMANCE SCORE",
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[500])),
                   const SizedBox(height: 16),
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      SizedBox(width: 140, height: 140, child: CircularProgressIndicator(value: performanceScore / 100, backgroundColor: Colors.grey[100], valueColor: AlwaysStoppedAnimation<Color>(compColor), strokeWidth: 12, strokeCap: StrokeCap.round)),
+                      SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: CircularProgressIndicator(
+                              value: performanceScore / 100,
+                              backgroundColor: Colors.grey[100],
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(compColor),
+                              strokeWidth: 12,
+                              strokeCap: StrokeCap.round)),
                       Column(
                         children: [
-                          Text(performanceScore.toStringAsFixed(0), style: GoogleFonts.inter(fontSize: 42, fontWeight: FontWeight.bold, color: const Color(0xFF1F2937))),
-                          Text(isCompliant ? "Compliant" : "Violation", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: isCompliant ? Colors.green : Colors.red)),
+                          Text(performanceScore.toStringAsFixed(0),
+                              style: GoogleFonts.inter(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF1F2937))),
+                          Text(isCompliant ? "Compliant" : "Violation",
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isCompliant ? Colors.green : Colors.red)),
                         ],
                       ),
                     ],
@@ -440,53 +599,127 @@ class _CementEmissionScreenState extends State<CementEmissionScreen>
           ),
           const SizedBox(height: 20),
           // Full Width Cards
-          _buildFullWidthCard("Short-Term Risk", complianceRisk, "Status", LucideIcons.alertTriangle, complianceRisk.contains("High") ? Colors.red : Colors.green, "Probability of exceeding 24h limit based on last 6h trend."),
+          _buildFullWidthCard(
+              "Short-Term Risk",
+              complianceRisk,
+              "Status",
+              LucideIcons.alertTriangle,
+              complianceRisk.contains("High") ? Colors.red : Colors.green,
+              "Probability of exceeding 24h limit based on last 6h trend."),
           const SizedBox(height: 12),
-          _buildFullWidthCard("Exceedance Severity", "${exceedanceSeverity.toStringAsFixed(0)} units", "Total Excess", LucideIcons.barChart2, Colors.orange, "Cumulative sum of PM2.5 units above 60 µg/m³ in last 24h."),
+          _buildFullWidthCard(
+              "Exceedance Severity",
+              "${exceedanceSeverity.toStringAsFixed(0)} units",
+              "Total Excess",
+              LucideIcons.barChart2,
+              Colors.orange,
+              "Cumulative sum of PM2.5 units above 60 µg/m³ in last 24h."),
           const SizedBox(height: 12),
-          _buildFullWidthCard("Compliance Stability", "±${complianceStability.toStringAsFixed(1)}", "Std Dev", LucideIcons.activity, Colors.blue, "Variation in hourly readings. High variation indicates unstable control."),
+          _buildFullWidthCard(
+              "Compliance Stability",
+              "±${complianceStability.toStringAsFixed(1)}",
+              "Std Dev",
+              LucideIcons.activity,
+              Colors.blue,
+              "Variation in hourly readings. High variation indicates unstable control."),
           const SizedBox(height: 12),
-          _buildFullWidthCard("Weekly Trend", weeklyTrend, "7-Day View", LucideIcons.calendar, Colors.purple, "Trend of environmental performance score over the last week."),
+          _buildFullWidthCard(
+              "Weekly Trend",
+              weeklyTrend,
+              "7-Day View",
+              LucideIcons.calendar,
+              Colors.purple,
+              "Trend of environmental performance score over the last week."),
           const SizedBox(height: 12),
-          _buildFullWidthCard("Control Effectiveness", controlEffectiveness, "Audit", LucideIcons.shieldCheck, Colors.teal, "Automated assessment of current suppression systems."),
+          _buildFullWidthCard(
+              "Control Effectiveness",
+              controlEffectiveness,
+              "Audit",
+              LucideIcons.shieldCheck,
+              Colors.teal,
+              "Automated assessment of current suppression systems."),
           const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget _buildMetricCard(String title, String value, String subtitle, IconData icon, Color color, String desc) {
+  Widget _buildMetricCard(String title, String value, String subtitle,
+      IconData icon, Color color, String desc) {
     return GestureDetector(
-      onTap: () => _showDetailBottomSheet(context, title, desc, value, icon, color),
+      onTap: () =>
+          _showDetailBottomSheet(context, title, desc, value, icon, color),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Icon(icon, size: 20, color: color), Text(subtitle, style: GoogleFonts.inter(fontSize: 10, color: Colors.grey))]),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1F2937))),
-            Text(title, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
-          ])
-        ]),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)
+            ]),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Icon(icon, size: 20, color: color),
+                Text(subtitle,
+                    style: GoogleFonts.inter(fontSize: 10, color: Colors.grey))
+              ]),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(value,
+                    style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1F2937))),
+                Text(title,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: Colors.grey[600])),
+              ])
+            ]),
       ),
     );
   }
 
-  Widget _buildFullWidthCard(String title, String value, String status, IconData icon, Color color, String desc) {
+  Widget _buildFullWidthCard(String title, String value, String status,
+      IconData icon, Color color, String desc) {
     return GestureDetector(
-      onTap: () => _showDetailBottomSheet(context, title, desc, "$value ($status)", icon, color),
+      onTap: () => _showDetailBottomSheet(
+          context, title, desc, "$value ($status)", icon, color),
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)
+            ]),
         child: Row(children: [
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)),
+          Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 24)),
           const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600])),
-            const SizedBox(height: 4),
-            Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1F2937))),
-            Text(status, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(title,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 4),
+                Text(value,
+                    style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1F2937))),
+                Text(status,
+                    style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: color)),
+              ])),
           const Icon(Icons.chevron_right, color: Colors.grey),
         ]),
       ),

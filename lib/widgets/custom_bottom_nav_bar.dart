@@ -9,6 +9,7 @@ import '../chemical/chemical_dust_spread_screen.dart';
 import '../chemical/chemical_process_stability_screen.dart';
 import '../screens/alerts_screen.dart';
 import '../session_manager/session_manager.dart';
+import '../theme/app_theme.dart'; // Import AppTheme
 
 class GoogleFontsHelper {
   static TextStyle inter({
@@ -175,7 +176,8 @@ class CustomBottomNavBar extends StatelessWidget {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF166534),
+      // --- DYNAMIC SELECTED ITEM COLOR ---
+      selectedItemColor: AppTheme.primaryColor,
       unselectedItemColor: Colors.grey,
       showUnselectedLabels: true,
       selectedLabelStyle:

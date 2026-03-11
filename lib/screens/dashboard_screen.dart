@@ -9,6 +9,7 @@ import 'chat_screen.dart';
 import 'generic_detail_screen.dart';
 import '../session_manager/session_manager.dart'; // Import SessionManager
 import '../widgets/custom_bottom_nav_bar.dart'; // Import CustomBottomNavBar
+import '../theme/app_theme.dart'; // Import the new AppTheme
 
 class GoogleFonts {
   static TextStyle inter({
@@ -99,6 +100,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // Helper method to map integer to string role
+  String _mapValueToRole(int val) {
+    if (val == 1) return 'agriculture';
+    if (val == 2) return 'cement';
+    return 'chemical'; // 0 or others
+  }
+
+  // Fetch Industry Type for specific Device ID
+  Future<void> _fetchIndustryType(String deviceId) async {
+    try {
+      final industryResponse = await http.get(
+        Uri.parse('$_baseUrl/devices/$deviceId/industry'),
+        headers: {
+          'Cookie': SessionManager().sessionCookie,
+          'User-Agent': 'FlutterApp',
+        },
+      );
+
+      if (industryResponse.statusCode == 200) {
+        final indData = jsonDecode(industryResponse.body);
+
+        if (indData['status'] == true && indData['data'] != null) {
+          int indValue = int.tryParse(
+                  indData['data']['industry_value']?.toString() ?? '1') ??
+              1;
+          String fetchedRole = _mapValueToRole(indValue);
+
+          SessionManager().setRole(fetchedRole);
+          SessionManager().setIndustryValue(indValue);
+          await SessionManager().saveRole(fetchedRole, industryValue: indValue);
+
+          debugPrint(
+              "Dashboard: Industry type updated successfully for device $deviceId: $fetchedRole (Value: $indValue)");
+
+          // Update the UI immediately so the bottom navigation bar and theme changes colors
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint(
+          "Dashboard: Error fetching industry type for device $deviceId: $e");
+    }
+  }
+
   void _switchDevice(String deviceId, String location) {
     if (selectedDeviceId == deviceId) return;
 
@@ -122,11 +169,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _currentLongitude =
             double.tryParse(device['longitude']?.toString() ?? "0.0") ?? 0.0;
 
-        // Update SessionManager so other screens know the new active location
+        // Update SessionManager so other screens know the new active location and device
         SessionManager().setLocation(_currentLatitude, _currentLongitude);
       }
     });
 
+    SessionManager().setDeviceId(deviceId);
+
+    // Fetch the industry type corresponding to this newly selected device
+    _fetchIndustryType(deviceId);
+
+    // Fetch live and history data
     _fetchLiveData();
     _fetchHistoryData();
   }
@@ -259,10 +312,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _currentLongitude =
                 double.tryParse(device['longitude']?.toString() ?? "0.0") ??
                     0.0;
-
-            // Sync with SessionManager
-            SessionManager().setLocation(_currentLatitude, _currentLongitude);
           });
+
+          // Sync with SessionManager
+          SessionManager().setLocation(_currentLatitude, _currentLongitude);
+          SessionManager().setDeviceId(selectedDeviceId);
+
+          // Verify industry type for the initially loaded device
+          _fetchIndustryType(selectedDeviceId);
         }
       }
     } catch (e) {
@@ -431,7 +488,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF166534),
+      // --- DYNAMIC BACKGROUND COLOR ---
+      backgroundColor: AppTheme.primaryColor,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -440,7 +498,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (context) => const ChatScreen()),
           );
         },
-        backgroundColor: const Color(0xFF166534),
+        // --- DYNAMIC FAB COLOR ---
+        backgroundColor: AppTheme.primaryColor,
         elevation: 4.0,
         shape: const CircleBorder(),
         child: const Icon(LucideIcons.bot, color: Colors.white, size: 28),
@@ -468,9 +527,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(30)),
                   child: isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
-                              color: Color(0xFF166534)))
+                              // --- DYNAMIC LOADER COLOR ---
+                              color: AppTheme.primaryColor))
                       : SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Column(
@@ -568,11 +628,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
+                  // --- DYNAMIC BACKGROUND COLOR FOR ICON ---
+                  color: AppTheme.lightBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(LucideIcons.sprout,
-                    size: 18, color: Color(0xFF166534)),
+                // --- DYNAMIC ICON & COLOR ---
+                child: Icon(AppTheme.industryIcon,
+                    size: 18, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 10),
               Text(

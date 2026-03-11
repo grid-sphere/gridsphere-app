@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/dashboard_screen.dart';
 import 'register_ui_screen.dart'; // Import Register Screen
 import '../session_manager/session_manager.dart'; // Ensure SessionManager is imported
+import '../theme/app_theme.dart'; // Import AppTheme
 
 class GoogleFonts {
   static TextStyle inter({
@@ -146,6 +147,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
           debugPrint(
               "Industry type fetched successfully on login: $fetchedRole (Value: $indValue)");
+
+          // Rebuild to apply correct theme colors before navigating
+          if (mounted) setState(() {});
         } else {
           debugPrint(
               "Failed to extract valid industry type. API Response: ${industryResponse.body}");
@@ -264,7 +268,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: const Color(0xFF166534),
+        // --- DYNAMIC BACKGROUND COLOR ---
+        backgroundColor: AppTheme.primaryColor,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
           child: Center(
@@ -349,8 +354,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       BorderSide(color: Colors.grey.shade300)),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF166534), width: 2)),
+                                  // --- DYNAMIC BORDER COLOR ---
+                                  borderSide: BorderSide(
+                                      color: AppTheme.primaryColor, width: 2)),
                             ),
                             validator: (value) => value!.isEmpty
                                 ? "Please enter your User ID"
@@ -386,8 +392,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       BorderSide(color: Colors.grey.shade300)),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF166534), width: 2)),
+                                  // --- DYNAMIC BORDER COLOR ---
+                                  borderSide: BorderSide(
+                                      color: AppTheme.primaryColor, width: 2)),
                             ),
                             validator: (value) => value!.isEmpty
                                 ? "Please enter your password"
@@ -399,7 +406,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _handleLogin,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF166534),
+                                // --- DYNAMIC BUTTON COLOR ---
+                                backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12)),
@@ -417,8 +425,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                           fontWeight: FontWeight.bold)),
                             ),
                           ),
-
-                          // --- UPDATED: Registration Link ---
                           const SizedBox(height: 20),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -440,7 +446,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Text(
                                   "Register",
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF166534),
+                                    // --- DYNAMIC TEXT COLOR ---
+                                    color: AppTheme.primaryColor,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
